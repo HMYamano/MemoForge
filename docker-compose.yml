@@ -1,0 +1,62 @@
+name: memoforge
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+    volumes:
+      - ./data/ollama:/root/.ollama
+    # Windows + Docker Desktop / WSL2 でも動かせますが、GPU 絡みはホスト版 Ollama の方が簡単です。
+    # Linux/WSL2 で Docker GPU を使う場合は下の gpus を有効化してください。
+    gpus: all
+    # セキュリティ重視なら host 公開しない
+    # ports:
+    #   - "11434:11434"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    depends_on:
+      - ollama
+      - memoforge
+    ports:
+      - "3000:8080"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_AUTH: "True"
+      ENABLE_MEMORIES: "False"
+      ENABLE_WEB_SEARCH: "False"
+      ENABLE_IMAGE_GENERATION: "False"
+      AUDIT_LOG_LEVEL: "METADATA"
+      MAX_BODY_LOG_SIZE: "2048"
+      GLOBAL_LOG_LEVEL: "INFO"
+    volumes:
+      - ./data/open-webui:/app/backend/data
+
+  memoforge:
+    build:
+      context: ./services/memoforge
+    container_name: memoforge
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    ports:
+      - "8001:8001"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      REASONING_MODEL: ${REASONING_MODEL:-qwen3:30b}
+      VISION_MODEL: ${VISION_MODEL:-gemma3:27b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-embeddinggemma}
+      MAX_RELATED_NOTES: "${MAX_RELATED_NOTES:-5}"
+      PDF_VISION_MAX_PAGES: "${PDF_VISION_MAX_PAGES:-4}"
+      APP_DATA_DIR: /app/data
+      NOTES_DIR: /app/notes
+      INCOMING_DIR: /app/incoming
+    volumes:
+      - ./data/memoforge:/app/data
+      - ./notes:/app/notes
+      - ./incoming:/app/incoming

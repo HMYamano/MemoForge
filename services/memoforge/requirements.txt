@@ -1,0 +1,14 @@
+fastapi==0.118.0
+uvicorn[standard]==0.37.0
+python-multipart==0.0.20
+jinja2==3.1.6
+langgraph==0.6.7
+langchain-core==0.3.76
+requests==2.32.5
+pydantic==2.11.9
+Pillow==11.3.0
+pypdf==6.8.0
+pypdfium2==5.6.0
+rank-bm25==0.2.2
+orjson==3.11.3
+python-slugify==8.0.4

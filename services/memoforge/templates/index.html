@@ -1,0 +1,1047 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MemoForge</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="page-glow" aria-hidden="true"></div>
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">MemoForge</p>
+        <h1>研究資料を、次に使えるラボノートへ。</h1>
+        <p class="hero-text">
+          PDF、画像、Markdown、テキストをまとめて読み取り、背景・要点・根拠・次の行動が見える Markdown ノートに整理します。
+        </p>
+        <div class="hero-tags">
+          <span class="hero-tag">Local only</span>
+          <span class="hero-tag">Markdown output</span>
+          <span class="hero-tag">Open WebUI ready</span>
+        </div>
+      </div>
+
+      <div class="hero-metrics">
+        <article class="metric-card">
+          <span class="metric-label">Reasoning</span>
+          <strong>{{ reasoning_model }}</strong>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">Vision</span>
+          <strong>{{ vision_model }}</strong>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">Recent Runs</span>
+          <strong>{{ runs|length }}</strong>
+        </article>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel composer-panel reveal">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Compose</p>
+            <h2>新しい整理ジョブ</h2>
+          </div>
+          <p class="section-copy">テンプレートから始めて、資料を添付し、そのまま研究メモを作れます。</p>
+        </div>
+
+        <div class="template-strip">
+          <button
+            class="template-chip"
+            type="button"
+            data-template="添付資料を統合し、研究背景・主要な主張・根拠・残る論点・次のアクションに整理してください。"
+          >
+            論文整理
+          </button>
+          <button
+            class="template-chip"
+            type="button"
+            data-template="複数資料の共通点と相違点を比較し、重要な比較軸と判断材料を箇条書きで整理してください。"
+          >
+            比較メモ
+          </button>
+          <button
+            class="template-chip"
+            type="button"
+            data-template="添付資料をもとに、次の実験候補、確認すべき仮説、必要な追加データを研究メモ形式でまとめてください。"
+          >
+            実験計画
+          </button>
+          <button
+            class="template-chip"
+            type="button"
+            data-template="図や本文から読み取れることと、まだ断定できないことを分けて、レビュー準備用メモに整理してください。"
+          >
+            査読準備
+          </button>
+        </div>
+
+        <form id="run-form" class="composer-form">
+          <label class="field" for="instruction">
+            <span class="field-label">依頼文</span>
+            <textarea
+              id="instruction"
+              name="instruction"
+              rows="9"
+              placeholder="例: 添付PDFとメモを統合して、背景・主要結果・次の実験候補に整理してください。"
+            ></textarea>
+          </label>
+
+          <div class="field">
+            <span class="field-label">資料を追加</span>
+            <input id="file-input" type="file" name="files" multiple hidden />
+            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="ファイルを追加">
+              <div class="dropzone-copy">
+                <strong>Drag &amp; drop your files</strong>
+                <p>PDF / PNG / JPG / MD / TXT などをまとめて追加できます。</p>
+              </div>
+              <button id="select-files-btn" class="secondary-button" type="button">ファイルを選択</button>
+            </div>
+            <ul id="file-list" class="file-list">
+              <li class="file-empty">まだファイルは追加されていません。</li>
+            </ul>
+          </div>
+
+          <section id="status-card" class="status-card" aria-live="polite">
+            <div class="status-topline">
+              <div>
+                <p class="section-kicker">Workflow Status</p>
+                <h3 id="status-label">待機中</h3>
+              </div>
+              <span id="status-badge" class="status-badge idle">Idle</span>
+            </div>
+            <div class="progress-track">
+              <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <p id="status-detail" class="status-detail">依頼文と資料を準備したら、整理を実行してください。</p>
+            <ol id="phase-list" class="phase-list"></ol>
+          </section>
+
+          <div class="action-row">
+            <button id="submit-btn" class="primary-button" type="submit">整理を実行<kbd class="kbd-hint">Ctrl ↵</kbd></button>
+            <button id="clear-btn" class="ghost-button" type="button">入力をクリア</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel inspector-panel reveal">
+        <div class="section-head inspector-head">
+          <div>
+            <p class="section-kicker">Review</p>
+            <h2>Run Review</h2>
+          </div>
+          <span id="result-state" class="result-state idle">No run</span>
+        </div>
+
+        <div class="summary-grid">
+          <article class="summary-card">
+            <span class="summary-label">Run ID</span>
+            <strong id="meta-run-id">未実行</strong>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Created</span>
+            <strong id="meta-created-at">-</strong>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Saved Note</span>
+            <strong id="meta-note-path">-</strong>
+          </article>
+        </div>
+
+        <div class="tab-bar" role="tablist" aria-label="Run detail tabs">
+          <button class="tab-button active" type="button" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+          <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="process">Process</button>
+          <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="note">Note</button>
+        </div>
+
+        <section class="tab-panel active" data-tab-panel="overview">
+          <div class="overview-grid">
+            <article class="overview-card">
+              <span class="summary-label">Review</span>
+              <strong id="overview-status">未実行</strong>
+            </article>
+            <article class="overview-card">
+              <span class="summary-label">Attachments</span>
+              <strong id="overview-attachments">0</strong>
+            </article>
+            <article class="overview-card">
+              <span class="summary-label">Related Notes</span>
+              <strong id="overview-related">0</strong>
+            </article>
+            <article class="overview-card">
+              <span class="summary-label">Log Entries</span>
+              <strong id="overview-log-count">0</strong>
+            </article>
+          </div>
+
+          <article class="insight-card">
+            <p class="section-kicker">Instruction</p>
+            <h3 id="overview-title">まだジョブはありません。</h3>
+            <p id="overview-instruction" class="insight-body">
+              最初のジョブを実行すると、ここに整理対象の概要と関連ノートが表示されます。
+            </p>
+          </article>
+
+          <article class="insight-card">
+            <p class="section-kicker">Related Notes</p>
+            <div id="related-notes-list" class="related-notes">
+              <p class="empty-copy">関連ノートはまだありません。</p>
+            </div>
+          </article>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="process">
+          <div class="process-grid">
+            <article class="process-card">
+              <p class="section-kicker">Plan</p>
+              <ol id="plan" class="timeline">
+                <li class="empty-copy">まだ計画はありません。</li>
+              </ol>
+            </article>
+
+            <article class="process-card">
+              <p class="section-kicker">Execution Log</p>
+              <div id="logs" class="log-stack">
+                <p class="empty-copy">ジョブを実行するとログが表示されます。</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="note">
+          <div class="note-toolbar">
+            <span id="note-path-chip" class="note-path-chip">未保存</span>
+            <button id="copy-note-btn" class="ghost-button small-button" type="button">Markdown をコピー</button>
+          </div>
+          <article id="final-markdown" class="memo-rendered">
+            <p class="empty-copy">最終メモはここに表示されます。</p>
+          </article>
+        </section>
+      </section>
+
+      <aside class="panel history-panel reveal">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">History</p>
+            <h2>最近のジョブ</h2>
+          </div>
+          <p class="section-copy">保存済みの run を開いて、過去のメモやログをすぐ見返せます。</p>
+        </div>
+
+        <div id="run-list" class="history-list">
+          {% if runs %}
+            {% for run in runs %}
+            <button class="run-item" type="button" data-run-id="{{ run['run_id'] }}" data-created-at="{{ run['created_at'] }}">
+              <span class="run-kicker run-date">{{ run['created_at'] }}</span>
+              <strong>{{ run['run_id'] }}</strong>
+              <span class="run-preview">{{ run['instruction'] }}</span>
+            </button>
+            {% endfor %}
+          {% else %}
+            <div class="history-empty">
+              <strong>まだ保存済みジョブはありません。</strong>
+              <p>最初の研究メモを作ると、ここに履歴が蓄積されます。</p>
+            </div>
+          {% endif %}
+        </div>
+      </aside>
+    </main>
+
+    <script>
+      const progressPhases = [
+        { label: "入力準備", detail: "依頼文と添付資料をまとめています。", progress: 12 },
+        { label: "本文と図の抽出", detail: "本文・図・PDF ページを読み取っています。", progress: 38 },
+        { label: "メモ草案の整理", detail: "背景、要点、根拠、次の行動を構造化しています。", progress: 71 },
+        { label: "レビューと保存", detail: "最終確認を行い、ノートへ保存しています。", progress: 92 }
+      ];
+      const phaseStatusMap = {
+        queued: { index: 0, label: "ジョブ受付", detail: "バックグラウンドで整理ジョブを開始しています。", progress: 4 },
+        intake: { index: 0, label: progressPhases[0].label, detail: progressPhases[0].detail, progress: progressPhases[0].progress },
+        extract: { index: 1, label: progressPhases[1].label, detail: progressPhases[1].detail, progress: progressPhases[1].progress },
+        retrieve: { index: 1, label: "関連ノート検索", detail: "既存のノートから関連メモを探しています。", progress: 52 },
+        structure: { index: 2, label: progressPhases[2].label, detail: progressPhases[2].detail, progress: progressPhases[2].progress },
+        review: { index: 3, label: "レビュー中", detail: "草案を見直しています。", progress: 84 },
+        revise: { index: 3, label: "修正反映", detail: "レビュー指摘をメモに反映しています。", progress: 92 },
+        accept: { index: 3, label: "最終確認", detail: "レビュー結果を確認しています。", progress: 92 },
+        save: { index: 3, label: "保存中", detail: "研究メモを保存しています。", progress: 98 }
+      };
+      const activeRunStatuses = new Set(["queued", "running"]);
+
+      const runForm = document.getElementById("run-form");
+      const instructionInput = document.getElementById("instruction");
+      const fileInput = document.getElementById("file-input");
+      const selectFilesButton = document.getElementById("select-files-btn");
+      const dropzone = document.getElementById("dropzone");
+      const fileList = document.getElementById("file-list");
+      const submitButton = document.getElementById("submit-btn");
+      const clearButton = document.getElementById("clear-btn");
+      const statusLabel = document.getElementById("status-label");
+      const statusBadge = document.getElementById("status-badge");
+      const statusDetail = document.getElementById("status-detail");
+      const progressBar = document.getElementById("progress-bar");
+      const phaseList = document.getElementById("phase-list");
+      const runList = document.getElementById("run-list");
+      const copyNoteButton = document.getElementById("copy-note-btn");
+      const tabButtons = Array.from(document.querySelectorAll(".tab-button"));
+      const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
+      const resultState = document.getElementById("result-state");
+      const metaRunId = document.getElementById("meta-run-id");
+      const metaCreatedAt = document.getElementById("meta-created-at");
+      const metaNotePath = document.getElementById("meta-note-path");
+      const overviewStatus = document.getElementById("overview-status");
+      const overviewAttachments = document.getElementById("overview-attachments");
+      const overviewRelated = document.getElementById("overview-related");
+      const overviewLogCount = document.getElementById("overview-log-count");
+      const overviewTitle = document.getElementById("overview-title");
+      const overviewInstruction = document.getElementById("overview-instruction");
+      const relatedNotesList = document.getElementById("related-notes-list");
+      const planList = document.getElementById("plan");
+      const logsContainer = document.getElementById("logs");
+      const notePathChip = document.getElementById("note-path-chip");
+      const finalMarkdown = document.getElementById("final-markdown");
+
+      let selectedFiles = [];
+      let pollTimer = null;
+      let activePollRunId = "";
+      let rawNoteMarkdown = "";
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function formatDate(isoString) {
+        if (!isoString) return "-";
+        try {
+          const d = new Date(isoString);
+          if (isNaN(d.getTime())) return isoString;
+          const diffMs = Date.now() - d.getTime();
+          const diffMin = Math.floor(diffMs / 60000);
+          if (diffMin < 1) return "今すぐ";
+          if (diffMin < 60) return `${diffMin}分前`;
+          const diffHour = Math.floor(diffMin / 60);
+          if (diffHour < 24) return `${diffHour}時間前`;
+          const diffDay = Math.floor(diffHour / 24);
+          if (diffDay < 7) return `${diffDay}日前`;
+          return d.toLocaleDateString("ja-JP", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        } catch (_) {
+          return isoString;
+        }
+      }
+
+      function fileTypeLabel(filename) {
+        const ext = String(filename || "").split(".").pop().toLowerCase();
+        const pdf = ["pdf"];
+        const img = ["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"];
+        const data = ["json", "csv"];
+        if (pdf.includes(ext)) return { label: ext.toUpperCase(), cls: "type-pdf" };
+        if (img.includes(ext)) return { label: ext.toUpperCase(), cls: "type-img" };
+        if (data.includes(ext)) return { label: ext.toUpperCase(), cls: "type-data" };
+        return { label: ext.toUpperCase() || "FILE", cls: "" };
+      }
+
+      function formatBytes(bytes) {
+        if (!bytes) return "0 B";
+        const units = ["B", "KB", "MB", "GB"];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex += 1;
+        }
+        return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+      }
+
+      function fileKey(file) {
+        return `${file.name}:${file.size}:${file.lastModified}`;
+      }
+
+      function mergeFiles(fileCollection) {
+        const incoming = Array.from(fileCollection || []);
+        const existing = new Set(selectedFiles.map(fileKey));
+        for (const file of incoming) {
+          const key = fileKey(file);
+          if (!existing.has(key)) {
+            selectedFiles.push(file);
+            existing.add(key);
+          }
+        }
+        renderFileList();
+      }
+
+      function renderFileList() {
+        if (!selectedFiles.length) {
+          fileList.innerHTML = '<li class="file-empty">まだファイルは追加されていません。</li>';
+          return;
+        }
+
+        fileList.innerHTML = selectedFiles
+          .map((file, index) => {
+            const { label, cls } = fileTypeLabel(file.name);
+            return `
+              <li class="file-pill">
+                <span class="file-type ${escapeHtml(cls)}">${escapeHtml(label)}</span>
+                <span class="file-name">${escapeHtml(file.name)}</span>
+                <span class="file-meta">${formatBytes(file.size)}</span>
+                <button class="file-remove" type="button" data-remove-index="${index}" aria-label="remove file">×</button>
+              </li>
+            `;
+          })
+          .join("");
+      }
+
+      function renderPhaseList(mode = "idle", activeIndex = -1) {
+        const completedThreshold = mode === "success" ? progressPhases.length : activeIndex;
+        phaseList.innerHTML = progressPhases
+          .map((phase, index) => {
+            let phaseClass = "pending";
+            if (index < completedThreshold) phaseClass = "complete";
+            if (mode === "running" && index === activeIndex) phaseClass = "active";
+            if (mode === "error" && index === activeIndex) phaseClass = "active error";
+
+            return `
+              <li class="phase-item ${phaseClass}">
+                <span class="phase-index">${index + 1}</span>
+                <div>
+                  <strong>${escapeHtml(phase.label)}</strong>
+                  <p>${escapeHtml(phase.detail)}</p>
+                </div>
+              </li>
+            `;
+          })
+          .join("");
+      }
+
+      function setStatus(mode, label, detail, progressValue) {
+        const badgeLabels = {
+          idle: "Idle",
+          running: "Running",
+          success: "Saved",
+          error: "Error"
+        };
+        const boundedProgress = Math.max(0, Math.min(100, Number(progressValue) || 0));
+
+        statusLabel.textContent = label;
+        statusDetail.textContent = detail;
+        statusBadge.textContent = badgeLabels[mode] || "Idle";
+        statusBadge.className = `status-badge ${mode}`;
+        progressBar.style.width = `${boundedProgress}%`;
+        progressBar.className = `progress-bar ${mode}`;
+      }
+
+      function normalizeRun(run) {
+        const status = run && run.status
+          ? String(run.status)
+          : run && run.note_path
+            ? "completed"
+            : "idle";
+        const currentStep = run && run.current_step
+          ? String(run.current_step)
+          : status === "completed"
+            ? "save"
+            : "queued";
+        const progress = Number.isFinite(Number(run && run.progress))
+          ? Number(run.progress)
+          : status === "completed"
+            ? 100
+            : (phaseStatusMap[currentStep] || phaseStatusMap.queued).progress;
+
+        return {
+          ...(run || {}),
+          status,
+          current_step: currentStep,
+          progress: Math.max(0, Math.min(100, progress)),
+          error_message: run && run.error_message ? String(run.error_message) : ""
+        };
+      }
+
+      function phaseIndexForRun(run) {
+        return (phaseStatusMap[run.current_step] || phaseStatusMap.queued).index;
+      }
+
+      function stopRunPolling() {
+        if (pollTimer) {
+          window.clearTimeout(pollTimer);
+          pollTimer = null;
+        }
+        activePollRunId = "";
+      }
+
+      async function fetchRun(runId) {
+        const response = await fetch(`/api/runs/${runId}`);
+        if (!response.ok) {
+          throw new Error("保存済み run の読み込みに失敗しました。");
+        }
+        return normalizeRun(await response.json());
+      }
+
+      function scheduleRunPoll(runId) {
+        if (!runId || activePollRunId !== runId) return;
+        if (pollTimer) window.clearTimeout(pollTimer);
+        pollTimer = window.setTimeout(async () => {
+          pollTimer = null;
+          try {
+            const run = await fetchRun(runId);
+            if (activePollRunId !== runId) return;
+            renderRun(run);
+            upsertRunItem(run);
+            if (activeRunStatuses.has(run.status)) {
+              scheduleRunPoll(runId);
+            } else {
+              stopRunPolling();
+            }
+          } catch (_error) {
+            if (activePollRunId === runId) {
+              scheduleRunPoll(runId);
+            }
+          }
+        }, 1500);
+      }
+
+      function startRunPolling(runId) {
+        if (!runId) return;
+        if (activePollRunId !== runId) {
+          stopRunPolling();
+          activePollRunId = runId;
+        }
+        scheduleRunPoll(runId);
+      }
+
+      function syncStatusCard(run) {
+        const normalizedRun = normalizeRun(run);
+        const phaseInfo = phaseStatusMap[normalizedRun.current_step] || phaseStatusMap.queued;
+        const latestLog = Array.isArray(normalizedRun.logs) && normalizedRun.logs.length
+          ? normalizedRun.logs[normalizedRun.logs.length - 1]
+          : null;
+
+        if (normalizedRun.status === "failed") {
+          renderPhaseList("error", phaseIndexForRun(normalizedRun));
+          setStatus(
+            "error",
+            "実行に失敗",
+            normalizedRun.error_message || "ワークフローの実行中にエラーが発生しました。",
+            normalizedRun.progress || phaseInfo.progress
+          );
+          return normalizedRun;
+        }
+
+        if (normalizedRun.status === "completed") {
+          renderPhaseList("success", progressPhases.length);
+          setStatus("success", "保存完了", "研究メモを保存しました。右側の Note タブで内容を確認できます。", 100);
+          return normalizedRun;
+        }
+
+        if (activeRunStatuses.has(normalizedRun.status)) {
+          renderPhaseList("running", phaseInfo.index);
+          setStatus(
+            "running",
+            phaseInfo.label,
+            latestLog && latestLog.message ? latestLog.message : phaseInfo.detail,
+            normalizedRun.progress || phaseInfo.progress
+          );
+          return normalizedRun;
+        }
+
+        renderPhaseList();
+        setStatus("idle", "待機中", "依頼文と資料を準備したら、整理を実行してください。", 0);
+        return normalizedRun;
+      }
+
+      function resetComposer() {
+        instructionInput.value = "";
+        selectedFiles = [];
+        renderFileList();
+      }
+
+      function setActiveTab(tabName) {
+        tabButtons.forEach((button) => {
+          const isActive = button.dataset.tab === tabName;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        tabPanels.forEach((panel) => {
+          panel.classList.toggle("active", panel.dataset.tabPanel === tabName);
+        });
+      }
+
+      function setActiveRunItem(runId) {
+        runList.querySelectorAll(".run-item").forEach((button) => {
+          button.classList.toggle("active", button.dataset.runId === runId);
+        });
+      }
+
+      function extractTitle(markdown) {
+        const match = String(markdown || "").match(/^#\s+(.+)$/m);
+        return match ? match[1].trim() : "研究メモ";
+      }
+
+      function verdictLabel(review) {
+        const verdict = String(review && review.verdict ? review.verdict : "accept").toLowerCase();
+        if (verdict === "revise") return "修正して保存";
+        return "レビュー通過";
+      }
+
+      function inlineMarkdown(text) {
+        return escapeHtml(text)
+          .replace(/`([^`]+)`/g, "<code>$1</code>")
+          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      }
+
+      function renderMarkdown(markdown) {
+        const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
+        const html = [];
+        let paragraph = [];
+        let listType = null;
+        let inCodeBlock = false;
+        let codeLines = [];
+
+        function flushParagraph() {
+          if (paragraph.length) {
+            html.push(`<p>${paragraph.map(inlineMarkdown).join("<br />")}</p>`);
+            paragraph = [];
+          }
+        }
+
+        function closeList() {
+          if (listType) {
+            html.push(`</${listType}>`);
+            listType = null;
+          }
+        }
+
+        function openList(nextType) {
+          if (listType !== nextType) {
+            closeList();
+            html.push(`<${nextType}>`);
+            listType = nextType;
+          }
+        }
+
+        for (const line of lines) {
+          if (inCodeBlock) {
+            if (line.trim().startsWith("```")) {
+              html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+              inCodeBlock = false;
+              codeLines = [];
+            } else {
+              codeLines.push(line);
+            }
+            continue;
+          }
+
+          if (line.trim().startsWith("```")) {
+            flushParagraph();
+            closeList();
+            inCodeBlock = true;
+            continue;
+          }
+
+          if (!line.trim()) {
+            flushParagraph();
+            closeList();
+            continue;
+          }
+
+          if (/^#{1,6}\s+/.test(line)) {
+            flushParagraph();
+            closeList();
+            const level = Math.min(line.match(/^#+/)[0].length, 6);
+            const content = line.replace(/^#{1,6}\s+/, "");
+            html.push(`<h${level}>${inlineMarkdown(content)}</h${level}>`);
+            continue;
+          }
+
+          if (/^---+$/.test(line.trim())) {
+            flushParagraph();
+            closeList();
+            html.push("<hr />");
+            continue;
+          }
+
+          if (/^\d+\.\s+/.test(line)) {
+            flushParagraph();
+            openList("ol");
+            html.push(`<li>${inlineMarkdown(line.replace(/^\d+\.\s+/, ""))}</li>`);
+            continue;
+          }
+
+          if (/^[-*]\s+/.test(line)) {
+            flushParagraph();
+            openList("ul");
+            html.push(`<li>${inlineMarkdown(line.replace(/^[-*]\s+/, ""))}</li>`);
+            continue;
+          }
+
+          if (/^>\s+/.test(line)) {
+            flushParagraph();
+            closeList();
+            html.push(`<blockquote>${inlineMarkdown(line.replace(/^>\s+/, ""))}</blockquote>`);
+            continue;
+          }
+
+          paragraph.push(line);
+        }
+
+        flushParagraph();
+        closeList();
+
+        if (inCodeBlock) {
+          html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+        }
+
+        return html.join("");
+      }
+
+      function renderRelatedNotes(run) {
+        const relatedNotes = Array.isArray(run.related_notes) ? run.related_notes : [];
+        if (!relatedNotes.length) {
+          relatedNotesList.innerHTML = '<p class="empty-copy">関連ノートは見つかりませんでした。</p>';
+          return;
+        }
+
+        relatedNotesList.innerHTML = relatedNotes
+          .map(
+            (note) => `
+              <article class="related-note">
+                <strong>${escapeHtml(note.name || "related note")}</strong>
+                <span class="related-score">score ${Number(note.score || 0).toFixed(2)}</span>
+                <p>${escapeHtml(String(note.snippet || "").slice(0, 180))}</p>
+              </article>
+            `
+          )
+          .join("");
+      }
+
+      function renderPlan(plan) {
+        if (!Array.isArray(plan) || !plan.length) {
+          planList.innerHTML = '<li class="empty-copy">まだ計画はありません。</li>';
+          return;
+        }
+
+        planList.innerHTML = plan
+          .map(
+            (step, index) => `
+              <li class="timeline-item">
+                <span class="timeline-marker">${index + 1}</span>
+                <div class="timeline-body">${escapeHtml(step)}</div>
+              </li>
+            `
+          )
+          .join("");
+      }
+
+      function renderLogs(logs) {
+        if (!Array.isArray(logs) || !logs.length) {
+          logsContainer.innerHTML = '<p class="empty-copy">ジョブを実行するとログが表示されます。</p>';
+          return;
+        }
+
+        logsContainer.innerHTML = logs
+          .map((log) => {
+            const extra = log.extra && Object.keys(log.extra).length
+              ? `<pre>${escapeHtml(JSON.stringify(log.extra, null, 2))}</pre>`
+              : "";
+
+            return `
+              <details class="log-entry">
+                <summary>
+                  <div>
+                    <strong>${escapeHtml(log.step || "step")}</strong>
+                    <span>${escapeHtml(log.message || "")}</span>
+                  </div>
+                  <time>${escapeHtml(log.time || "")}</time>
+                </summary>
+                ${extra}
+              </details>
+            `;
+          })
+          .join("");
+      }
+
+      function renderRun(run, options = {}) {
+        const normalizedRun = syncStatusCard(run);
+        const noteMarkdown = normalizedRun.final_markdown || "";
+        const filePaths = Array.isArray(normalizedRun.file_paths) ? normalizedRun.file_paths : [];
+        const relatedNotes = Array.isArray(normalizedRun.related_notes) ? normalizedRun.related_notes : [];
+        const logs = Array.isArray(normalizedRun.logs) ? normalizedRun.logs : [];
+
+        rawNoteMarkdown = noteMarkdown;
+        metaRunId.textContent = normalizedRun.run_id || "-";
+        metaCreatedAt.textContent = normalizedRun.created_at || "-";
+        metaNotePath.textContent = normalizedRun.note_path || "未保存";
+        notePathChip.textContent = normalizedRun.note_path || "未保存";
+
+        if (normalizedRun.status === "completed") {
+          overviewStatus.textContent = verdictLabel(normalizedRun.review || {});
+        } else if (normalizedRun.status === "failed") {
+          overviewStatus.textContent = "失敗";
+        } else if (activeRunStatuses.has(normalizedRun.status)) {
+          overviewStatus.textContent = "処理中";
+        } else {
+          overviewStatus.textContent = "未実行";
+        }
+
+        overviewAttachments.textContent = String(filePaths.length);
+        overviewRelated.textContent = String(relatedNotes.length);
+        overviewLogCount.textContent = String(logs.length);
+        overviewTitle.textContent = extractTitle(noteMarkdown);
+        overviewInstruction.textContent = normalizedRun.instruction || "依頼文はありません。";
+
+        renderRelatedNotes(normalizedRun);
+        renderPlan(normalizedRun.plan || []);
+        renderLogs(logs);
+
+        if (noteMarkdown) {
+          finalMarkdown.innerHTML = renderMarkdown(noteMarkdown);
+          copyNoteButton.disabled = false;
+        } else if (activeRunStatuses.has(normalizedRun.status)) {
+          finalMarkdown.innerHTML = '<p class="empty-copy">メモを生成中です。進捗は Process タブでも確認できます。</p>';
+          copyNoteButton.disabled = true;
+        } else if (normalizedRun.status === "failed") {
+          finalMarkdown.innerHTML = '<p class="empty-copy">メモの生成に失敗しました。Process タブのログを確認してください。</p>';
+          copyNoteButton.disabled = true;
+        } else {
+          finalMarkdown.innerHTML = '<p class="empty-copy">最終メモはまだありません。</p>';
+          copyNoteButton.disabled = true;
+        }
+
+        if (normalizedRun.status === "completed") {
+          resultState.textContent = "Saved";
+          resultState.className = "result-state success";
+        } else if (normalizedRun.status === "failed") {
+          resultState.textContent = "Failed";
+          resultState.className = "result-state error";
+        } else if (activeRunStatuses.has(normalizedRun.status)) {
+          resultState.textContent = "Running";
+          resultState.className = "result-state running";
+        } else {
+          resultState.textContent = "No run";
+          resultState.className = "result-state idle";
+        }
+
+        setActiveRunItem(normalizedRun.run_id || "");
+        if (options.focusNote && noteMarkdown) {
+          setActiveTab("note");
+        }
+      }
+
+      function upsertRunItem(run) {
+        const runId = run.run_id || "";
+        if (!runId) return;
+
+        const existing = runList.querySelector(`.run-item[data-run-id="${runId}"]`);
+        const markup = `
+          <span class="run-kicker run-date">${escapeHtml(formatDate(run.created_at || ""))}</span>
+          <strong>${escapeHtml(runId)}</strong>
+          <span class="run-preview">${escapeHtml(run.instruction || "")}</span>
+        `;
+
+        if (existing) {
+          existing.innerHTML = markup;
+          setActiveRunItem(runId);
+          return;
+        }
+
+        const emptyState = runList.querySelector(".history-empty");
+        if (emptyState) emptyState.remove();
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "run-item";
+        button.dataset.runId = runId;
+        button.innerHTML = markup;
+        runList.prepend(button);
+        setActiveRunItem(runId);
+      }
+
+      async function loadRun(runId) {
+        if (!runId) return;
+
+        const button = runList.querySelector(`.run-item[data-run-id="${runId}"]`);
+        if (button) button.classList.add("is-loading");
+        try {
+          const run = await fetchRun(runId);
+          renderRun(run);
+          if (activeRunStatuses.has(run.status)) {
+            startRunPolling(run.run_id);
+          } else {
+            stopRunPolling();
+          }
+        } finally {
+          if (button) button.classList.remove("is-loading");
+        }
+      }
+
+      instructionInput.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+          event.preventDefault();
+          runForm.requestSubmit();
+        }
+      });
+
+      document.querySelectorAll(".template-chip").forEach((button) => {
+        button.addEventListener("click", () => {
+          const nextTemplate = button.dataset.template || "";
+          instructionInput.value = instructionInput.value.trim()
+            ? `${instructionInput.value.trim()}\n\n${nextTemplate}`
+            : nextTemplate;
+          instructionInput.focus();
+        });
+      });
+
+      tabButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          setActiveTab(button.dataset.tab);
+        });
+      });
+
+      selectFilesButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        fileInput.click();
+      });
+      dropzone.addEventListener("click", () => fileInput.click());
+      dropzone.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          fileInput.click();
+        }
+      });
+
+      fileInput.addEventListener("change", (event) => {
+        mergeFiles(event.target.files);
+        fileInput.value = "";
+      });
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.add("is-dragover");
+        });
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.remove("is-dragover");
+        });
+      });
+
+      dropzone.addEventListener("drop", (event) => {
+        mergeFiles(event.dataTransfer.files);
+      });
+
+      fileList.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-remove-index]");
+        if (!button) return;
+
+        const index = Number(button.dataset.removeIndex);
+        if (Number.isFinite(index)) {
+          selectedFiles.splice(index, 1);
+          renderFileList();
+        }
+      });
+
+      clearButton.addEventListener("click", () => {
+        resetComposer();
+      });
+
+      runList.addEventListener("click", async (event) => {
+        const button = event.target.closest(".run-item");
+        if (!button) return;
+
+        try {
+          await loadRun(button.dataset.runId);
+        } catch (error) {
+          setStatus("error", "読み込み失敗", error.message || "保存済みジョブを読み込めませんでした。", 0);
+        }
+      });
+
+      copyNoteButton.addEventListener("click", async () => {
+        if (!rawNoteMarkdown) return;
+
+        try {
+          await navigator.clipboard.writeText(rawNoteMarkdown);
+          copyNoteButton.textContent = "コピーしました";
+          window.setTimeout(() => {
+            copyNoteButton.textContent = "Markdown をコピー";
+          }, 1400);
+        } catch (_error) {
+          copyNoteButton.textContent = "コピー失敗";
+          window.setTimeout(() => {
+            copyNoteButton.textContent = "Markdown をコピー";
+          }, 1400);
+        }
+      });
+
+      runForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const instruction = instructionInput.value.trim();
+        if (!instruction) {
+          setStatus("error", "依頼文が必要です", "整理を実行する前に、依頼文を入力してください。", 0);
+          instructionInput.focus();
+          return;
+        }
+
+        const payload = new FormData();
+        payload.append("instruction", instruction);
+        selectedFiles.forEach((file) => payload.append("files", file, file.name));
+
+        submitButton.disabled = true;
+        runForm.classList.add("is-busy");
+        renderPhaseList("running", 0);
+        setStatus("running", "ジョブ登録中", "整理ジョブを作成しています。", 4);
+
+        try {
+          const response = await fetch("/api/runs", {
+            method: "POST",
+            body: payload
+          });
+
+          if (!response.ok) {
+            throw new Error("ジョブの実行に失敗しました。サーバー設定を確認してください。");
+          }
+
+          const run = normalizeRun(await response.json());
+          renderRun(run);
+          upsertRunItem(run);
+          startRunPolling(run.run_id);
+        } catch (error) {
+          stopRunPolling();
+          renderPhaseList("error", 0);
+          setStatus("error", "実行に失敗", error.message || "予期しないエラーが発生しました。", 0);
+        } finally {
+          submitButton.disabled = false;
+          runForm.classList.remove("is-busy");
+        }
+      });
+
+      renderFileList();
+      renderPhaseList();
+      setStatus("idle", "待機中", "依頼文と資料を準備したら、整理を実行してください。", 0);
+      copyNoteButton.disabled = true;
+
+      // Format server-rendered dates in history panel
+      runList.querySelectorAll(".run-item[data-created-at]").forEach((btn) => {
+        const kicker = btn.querySelector(".run-date");
+        if (kicker) kicker.textContent = formatDate(btn.dataset.createdAt);
+      });
+
+      const firstRunButton = runList.querySelector(".run-item");
+      if (firstRunButton) {
+        loadRun(firstRunButton.dataset.runId).catch(() => {
+          setStatus("error", "読み込み失敗", "初期ジョブの表示に失敗しました。", 0);
+        });
+      }
+    </script>
+  </body>
+</html>
