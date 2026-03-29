@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PIL import Image
 import pypdfium2 as pdfium
+from PIL import Image
 from pypdf import PdfReader
 
 from .config import settings
