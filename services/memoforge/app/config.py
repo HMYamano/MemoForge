@@ -29,6 +29,14 @@ class Settings:
     def rendered_pages_dir(self) -> Path:
         return self.app_data_dir / "rendered_pages"
 
+    @property
+    def chat_indexes_dir(self) -> Path:
+        return self.app_data_dir / "chat_indexes"
+
+    @property
+    def chat_threads_dir(self) -> Path:
+        return self.app_data_dir / "chat_threads"
+
 
 settings = Settings()
 for directory in [
@@ -38,5 +46,7 @@ for directory in [
     settings.runs_dir,
     settings.uploads_dir,
     settings.rendered_pages_dir,
+    settings.chat_indexes_dir,
+    settings.chat_threads_dir,
 ]:
     directory.mkdir(parents=True, exist_ok=True)

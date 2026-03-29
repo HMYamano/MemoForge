@@ -48,6 +48,42 @@ def load_run(run_id: str) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def save_run_chat_index(run_id: str, payload: dict[str, Any]) -> Path:
+    path = settings.chat_indexes_dir / f"{run_id}.json"
+    _atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2))
+    return path
+
+
+def load_run_chat_index(run_id: str) -> dict[str, Any] | None:
+    path = settings.chat_indexes_dir / f"{run_id}.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def save_run_chat_thread(run_id: str, messages: list[dict[str, Any]]) -> Path:
+    path = settings.chat_threads_dir / f"{run_id}.json"
+    _atomic_write_text(path, json.dumps(messages, ensure_ascii=False, indent=2))
+    return path
+
+
+def load_run_chat_thread(run_id: str) -> list[dict[str, Any]]:
+    path = settings.chat_threads_dir / f"{run_id}.json"
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def clear_run_chat_thread(run_id: str) -> None:
+    path = settings.chat_threads_dir / f"{run_id}.json"
+    if path.exists():
+        path.unlink()
+
+
 def list_runs(limit: int = 20) -> list[dict[str, Any]]:
     runs: list[dict[str, Any]] = []
     for path in sorted(settings.runs_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):

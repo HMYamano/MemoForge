@@ -29,7 +29,32 @@ def summarize_image_with_gemma(image_path: Path, prompt: str) -> str:
     )
 
 
-def extract_document(file_path: Path) -> dict[str, Any]:
+_IMAGE_PROMPT: dict[str, str] = {
+    "ja": (
+        "あなたは研究メモ整理補助です。画像の内容を日本語で簡潔に要約し、"
+        "図・顕微鏡画像・グラフ・注釈・読めるテキスト・重要そうな比較対象を箇条書きで整理してください。"
+    ),
+    "en": (
+        "You are a research note assistant. Summarize the image content concisely in English. "
+        "List figures, microscope images, graphs, annotations, readable text, and important comparisons as bullet points."
+    ),
+}
+
+_PDF_PROMPT: dict[str, str] = {
+    "ja": (
+        "あなたは研究メモ整理補助です。PDF の各ページ画像を見て、"
+        "図・表・模式図・軸ラベル・キャプションっぽい要素・重要な比較を日本語で短く整理してください。"
+        "読み取れない部分は無理に推測しないでください。"
+    ),
+    "en": (
+        "You are a research note assistant. For each PDF page image, briefly summarize in English: "
+        "figures, tables, diagrams, axis labels, caption-like elements, and important comparisons. "
+        "Do not guess what cannot be clearly read."
+    ),
+}
+
+
+def extract_document(file_path: Path, lang: str = "ja") -> dict[str, Any]:
     suffix = file_path.suffix.lower()
     if suffix in TEXT_EXTENSIONS:
         return {
@@ -45,10 +70,7 @@ def extract_document(file_path: Path) -> dict[str, Any]:
         img.verify()
         vision = summarize_image_with_gemma(
             file_path,
-            (
-                "あなたは研究メモ整理補助です。画像の内容を日本語で簡潔に要約し、"
-                "図・顕微鏡画像・グラフ・注釈・読めるテキスト・重要そうな比較対象を箇条書きで整理してください。"
-            ),
+            _IMAGE_PROMPT.get(lang, _IMAGE_PROMPT["ja"]),
         )
         return {
             "type": "image",
@@ -59,7 +81,7 @@ def extract_document(file_path: Path) -> dict[str, Any]:
             "rendered_pages": [str(file_path)],
         }
     if suffix in PDF_EXTENSIONS:
-        return extract_pdf(file_path)
+        return extract_pdf(file_path, lang=lang)
     return {
         "type": "unknown",
         "path": str(file_path),
@@ -70,7 +92,7 @@ def extract_document(file_path: Path) -> dict[str, Any]:
     }
 
 
-def extract_pdf(file_path: Path) -> dict[str, Any]:
+def extract_pdf(file_path: Path, lang: str = "ja") -> dict[str, Any]:
     page_texts: list[str] = []
     rendered_pages: list[str] = []
     vision_notes: list[str] = []
@@ -98,11 +120,7 @@ def extract_pdf(file_path: Path) -> dict[str, Any]:
 
     if rendered_pages:
         client = OllamaClient()
-        prompt = (
-            "あなたは研究メモ整理補助です。PDF の各ページ画像を見て、"
-            "図・表・模式図・軸ラベル・キャプションっぽい要素・重要な比較を日本語で短く整理してください。"
-            "読み取れない部分は無理に推測しないでください。"
-        )
+        prompt = _PDF_PROMPT.get(lang, _PDF_PROMPT["ja"])
         for page_png in rendered_pages:
             vision_notes.append(
                 client.chat(

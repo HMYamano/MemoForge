@@ -13,9 +13,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .chat_tools import answer_run_question, ensure_run_chat_index
 from .config import settings
 from .graph import create_run_record, run_workflow
-from .storage import list_runs, load_run
+from .storage import clear_run_chat_thread, list_runs, load_run, load_run_chat_thread, now_iso, save_run_chat_thread
 
 app = FastAPI(title="MemoForge", version="1.0.0")
 app.add_middleware(
@@ -28,17 +29,31 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-def _execute_run_job(run_id: str, created_at: str, instruction: str, file_paths: list[str]) -> None:
+def _execute_run_job(run_id: str, created_at: str, instruction: str, file_paths: list[str], lang: str = "ja") -> None:
     try:
         run_workflow(
             instruction=instruction,
             file_paths=file_paths,
             run_id=run_id,
             created_at=created_at,
+            lang=lang,
         )
     except Exception:
         # The failure state is already persisted by run_workflow.
         return
+
+
+def _run_chat_ready(run: dict[str, Any]) -> bool:
+    return bool(str(run.get("final_markdown") or "").strip())
+
+
+def _chat_payload(run: dict[str, Any], messages: list[dict[str, Any]], *, ready: bool) -> dict[str, Any]:
+    return {
+        "run_id": run["run_id"],
+        "ready": ready,
+        "status": run.get("status", "queued"),
+        "messages": messages,
+    }
 
 
 @app.get("/health")
@@ -76,6 +91,7 @@ def api_run(run_id: str) -> dict[str, Any]:
 async def create_run(
     instruction: str = Form(...),
     files: list[UploadFile] | None = File(default=None),
+    lang: str = Form("ja"),
 ):
     upload_dir = settings.uploads_dir
     saved_paths: list[str] = []
@@ -87,7 +103,7 @@ async def create_run(
             target.write_bytes(content)
             saved_paths.append(str(target))
 
-    initial_run = create_run_record(instruction=instruction, file_paths=saved_paths)
+    initial_run = create_run_record(instruction=instruction, file_paths=saved_paths, lang=lang)
     thread = threading.Thread(
         target=_execute_run_job,
         kwargs={
@@ -95,12 +111,76 @@ async def create_run(
             "created_at": initial_run["created_at"],
             "instruction": instruction,
             "file_paths": saved_paths,
+            "lang": lang,
         },
         daemon=True,
         name=f"memoforge-run-{initial_run['run_id']}",
     )
     thread.start()
     return JSONResponse(initial_run, status_code=202)
+
+
+@app.get("/api/runs/{run_id}/chat")
+def api_run_chat(run_id: str) -> dict[str, Any]:
+    run = load_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="run not found")
+
+    ready = _run_chat_ready(run) and bool(ensure_run_chat_index(run))
+    messages = load_run_chat_thread(run_id) if ready else []
+    return _chat_payload(run, messages, ready=ready)
+
+
+@app.delete("/api/runs/{run_id}/chat")
+def api_run_chat_clear(run_id: str) -> dict[str, Any]:
+    run = load_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="run not found")
+
+    clear_run_chat_thread(run_id)
+    ready = _run_chat_ready(run) and bool(ensure_run_chat_index(run))
+    return _chat_payload(run, [], ready=ready)
+
+
+@app.post("/api/runs/{run_id}/chat")
+async def api_run_chat_message(run_id: str, request: Request) -> dict[str, Any]:
+    run = load_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="run not found")
+    if not _run_chat_ready(run):
+        raise HTTPException(status_code=409, detail="run is not ready for chat")
+
+    chat_index = ensure_run_chat_index(run)
+    if not chat_index:
+        raise HTTPException(status_code=409, detail="chat index is not available")
+
+    payload = await request.json()
+    message = str(payload.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="message is required")
+
+    mode = str(payload.get("mode") or "ask").strip().lower()
+    lang = str(payload.get("lang") or run.get("lang") or "ja").strip().lower()
+    messages = load_run_chat_thread(run_id)
+    user_turn = {
+        "id": f"user-{uuid.uuid4().hex[:8]}",
+        "role": "user",
+        "content": message,
+        "mode": "discuss" if mode == "discuss" else "ask",
+        "created_at": now_iso(),
+    }
+    assistant_turn = await asyncio.to_thread(
+        answer_run_question,
+        run,
+        message=message,
+        mode=mode,
+        lang=lang,
+        thread=messages,
+    )
+
+    updated_messages = [*messages, user_turn, assistant_turn]
+    save_run_chat_thread(run_id, updated_messages)
+    return _chat_payload(run, updated_messages, ready=True)
 
 
 # ---- Minimal OpenAI-compatible API for Open WebUI ----
@@ -138,11 +218,9 @@ async def v1_chat_completions(request: Request) -> dict[str, Any]:
         instruction = "保存済み研究メモを整理し、関連ノートも踏まえて応答してください。"
 
     result = await asyncio.to_thread(run_workflow, instruction=instruction, file_paths=[])
-    content = (
-        "研究メモを保存しました。\n\n"
-        f"保存先: {result.get('note_path')}\n\n"
-        f"---\n\n{result.get('final_markdown', '')}"
-    )
+    content = result.get("final_markdown", "").strip()
+    if not content:
+        content = "出力が生成されませんでした。"
 
     return {
         "id": f"chatcmpl-{result['run_id']}",
@@ -157,4 +235,8 @@ async def v1_chat_completions(request: Request) -> dict[str, Any]:
             }
         ],
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+        "memoforge": {
+            "run_id": result["run_id"],
+            "note_path": result.get("note_path"),
+        },
     }

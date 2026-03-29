@@ -7,17 +7,18 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from .chat_tools import build_run_chat_index
 from .config import settings
 from .document_tools import extract_document
 from .ollama_client import OllamaClient
 from .prompts import (
-    PLAN_PROMPT,
-    REVIEW_PROMPT,
-    REVISION_PROMPT,
-    STRUCTURE_PROMPT,
-    SYSTEM_SUPERVISOR,
+    get_plan_prompt,
+    get_review_prompt,
+    get_revision_prompt,
+    get_structure_prompt,
+    get_system_supervisor,
 )
-from .storage import load_run, now_iso, save_markdown_note, save_run, search_related_notes
+from .storage import load_run, now_iso, save_markdown_note, save_run, save_run_chat_index, search_related_notes
 
 STEP_PROGRESS: dict[str, int] = {
     "queued": 0,
@@ -36,6 +37,7 @@ class MemoState(TypedDict, total=False):
     run_id: str
     instruction: str
     file_paths: list[str]
+    lang: str
     plan: list[str]
     logs: list[dict[str, Any]]
     extracted_docs: list[dict[str, Any]]
@@ -73,6 +75,7 @@ def _build_run_payload(state: MemoState) -> dict[str, Any]:
         "updated_at": state.get("updated_at", now_iso()),
         "instruction": state["instruction"],
         "file_paths": state.get("file_paths", []),
+        "lang": state.get("lang", "ja"),
         "plan": state.get("plan", []),
         "logs": state.get("logs", []),
         "related_notes": state.get("related_notes", []),
@@ -136,6 +139,7 @@ def build_initial_state(
     run_id: str | None = None,
     created_at: str | None = None,
     status: str = "queued",
+    lang: str = "ja",
 ) -> MemoState:
     timestamp = created_at or now_iso()
     return {
@@ -144,6 +148,7 @@ def build_initial_state(
         "updated_at": timestamp,
         "instruction": instruction,
         "file_paths": file_paths,
+        "lang": lang,
         "logs": [],
         "status": status,
         "progress": STEP_PROGRESS["queued"],
@@ -152,39 +157,82 @@ def build_initial_state(
     }
 
 
-def create_run_record(instruction: str, file_paths: list[str], *, run_id: str | None = None) -> dict[str, Any]:
-    state = build_initial_state(instruction, file_paths, run_id=run_id, status="queued")
+def create_run_record(instruction: str, file_paths: list[str], *, run_id: str | None = None, lang: str = "ja") -> dict[str, Any]:
+    state = build_initial_state(instruction, file_paths, run_id=run_id, status="queued", lang=lang)
     save_run(state["run_id"], _build_run_payload(state))
     return _build_run_payload(state)
 
 
+_FALLBACK_PLAN: dict[str, list[str]] = {
+    "ja": [
+        "依頼文から目的と期待する出力を整理する",
+        "添付資料から主要情報を抽出する",
+        "関連ノートを参照して背景を補強する",
+        "依頼に沿った形式で再構成する",
+        "レビューして保存する",
+    ],
+    "en": [
+        "Clarify the goal and expected output from the instruction",
+        "Extract key information from attached materials",
+        "Supplement background using related notes",
+        "Reconstruct in the format requested by the user",
+        "Review and save",
+    ],
+}
+
+_LOG_MESSAGES: dict[str, dict[str, str]] = {
+    "ja": {
+        "intake": "依頼内容を整理しました。",
+        "extract": "資料の抽出が完了しました。",
+        "retrieve": "関連ノートを検索しました。",
+        "structure": "依頼に沿った草案を作成しました。",
+        "review": "草案をレビューしました。",
+        "revise": "レビュー結果を反映しました。",
+        "accept": "草案をそのまま採用しました。",
+        "save": "出力を保存しました。",
+        "error": "ワークフローの実行中にエラーが発生しました。",
+    },
+    "en": {
+        "intake": "Instruction organized.",
+        "extract": "Document extraction complete.",
+        "retrieve": "Related notes searched.",
+        "structure": "Draft created in the requested format.",
+        "review": "Draft reviewed.",
+        "revise": "Review feedback applied.",
+        "accept": "Draft accepted as-is.",
+        "save": "Output saved.",
+        "error": "An error occurred during workflow execution.",
+    },
+}
+
+
+def _lmsg(state: MemoState, step: str) -> str:
+    lang = state.get("lang", "ja")
+    return _LOG_MESSAGES.get(lang, _LOG_MESSAGES["ja"]).get(step, step)
+
+
 def intake_node(state: MemoState) -> MemoState:
     state = _persist_state(state, status="running", current_step="intake", progress=STEP_PROGRESS["intake"], error_message="")
+    lang = state.get("lang", "ja")
     client = OllamaClient()
     files = [Path(path).name for path in state.get("file_paths", [])]
     raw = client.chat(
         settings.reasoning_model,
         [
-            {"role": "system", "content": SYSTEM_SUPERVISOR},
-            {"role": "user", "content": PLAN_PROMPT.format(instruction=state["instruction"], files=json.dumps(files, ensure_ascii=False))},
+            {"role": "system", "content": get_system_supervisor(lang)},
+            {"role": "user", "content": get_plan_prompt(lang).format(instruction=state["instruction"], files=json.dumps(files, ensure_ascii=False))},
         ],
         format_json=True,
     )
     try:
         plan = json.loads(raw).get("plan", [])
     except Exception:
-        plan = [
-            "依頼文から目的と期待する出力を整理する",
-            "添付資料から主要情報を抽出する",
-            "関連ノートを参照して背景を補強する",
-            "研究メモとして再構成する",
-            "レビューして保存する",
-        ]
+        plan = _FALLBACK_PLAN.get(lang, _FALLBACK_PLAN["ja"])
     return _persist_node_result(
         state,
         {
             "plan": plan,
-            "logs": _log(state, "intake", "依頼内容を整理しました。", {"plan": plan}),
+            "logs": _log(state, "intake", _lmsg(state, "intake"), {"plan": plan}),
         },
         "intake",
     )
@@ -192,7 +240,8 @@ def intake_node(state: MemoState) -> MemoState:
 
 def extract_node(state: MemoState) -> MemoState:
     state = _persist_state(state, status="running", current_step="extract", progress=STEP_PROGRESS["extract"], error_message="")
-    extracted = [extract_document(Path(path)) for path in state.get("file_paths", [])]
+    lang = state.get("lang", "ja")
+    extracted = [extract_document(Path(path), lang=lang) for path in state.get("file_paths", [])]
     summary = [
         {
             "name": doc["name"],
@@ -206,7 +255,7 @@ def extract_node(state: MemoState) -> MemoState:
         state,
         {
             "extracted_docs": extracted,
-            "logs": _log(state, "extract", "資料の抽出が完了しました。", {"documents": summary}),
+            "logs": _log(state, "extract", _lmsg(state, "extract"), {"documents": summary}),
         },
         "extract",
     )
@@ -223,7 +272,7 @@ def retrieve_node(state: MemoState) -> MemoState:
         state,
         {
             "related_notes": related,
-            "logs": _log(state, "retrieve", "関連ノートを検索しました。", {"count": len(related)}),
+            "logs": _log(state, "retrieve", _lmsg(state, "retrieve"), {"count": len(related)}),
         },
         "retrieve",
     )
@@ -231,6 +280,7 @@ def retrieve_node(state: MemoState) -> MemoState:
 
 def structure_node(state: MemoState) -> MemoState:
     state = _persist_state(state, status="running", current_step="structure", progress=STEP_PROGRESS["structure"], error_message="")
+    lang = state.get("lang", "ja")
     client = OllamaClient()
     extracted_for_prompt = [
         {
@@ -248,10 +298,10 @@ def structure_node(state: MemoState) -> MemoState:
     draft = client.chat(
         settings.reasoning_model,
         [
-            {"role": "system", "content": SYSTEM_SUPERVISOR},
+            {"role": "system", "content": get_system_supervisor(lang)},
             {
                 "role": "user",
-                "content": STRUCTURE_PROMPT.format(
+                "content": get_structure_prompt(lang).format(
                     instruction=state["instruction"],
                     extracted=json.dumps(extracted_for_prompt, ensure_ascii=False),
                     related_notes=json.dumps(related_for_prompt, ensure_ascii=False),
@@ -263,7 +313,7 @@ def structure_node(state: MemoState) -> MemoState:
         state,
         {
             "draft_markdown": draft,
-            "logs": _log(state, "structure", "研究メモの草案を作成しました。"),
+            "logs": _log(state, "structure", _lmsg(state, "structure")),
         },
         "structure",
     )
@@ -271,12 +321,19 @@ def structure_node(state: MemoState) -> MemoState:
 
 def review_node(state: MemoState) -> MemoState:
     state = _persist_state(state, status="running", current_step="review", progress=STEP_PROGRESS["review"], error_message="")
+    lang = state.get("lang", "ja")
     client = OllamaClient()
     raw = client.chat(
         settings.reasoning_model,
         [
-            {"role": "system", "content": SYSTEM_SUPERVISOR},
-            {"role": "user", "content": REVIEW_PROMPT.format(draft=state["draft_markdown"][:14000])},
+            {"role": "system", "content": get_system_supervisor(lang)},
+            {
+                "role": "user",
+                "content": get_review_prompt(lang).format(
+                    instruction=state["instruction"],
+                    draft=state["draft_markdown"][:14000],
+                ),
+            },
         ],
         format_json=True,
     )
@@ -288,7 +345,7 @@ def review_node(state: MemoState) -> MemoState:
         state,
         {
             "review": review,
-            "logs": _log(state, "review", "草案をレビューしました。", review),
+            "logs": _log(state, "review", _lmsg(state, "review"), review),
         },
         "review",
     )
@@ -296,16 +353,19 @@ def review_node(state: MemoState) -> MemoState:
 
 def revise_node(state: MemoState) -> MemoState:
     state = _persist_state(state, status="running", current_step="revise", progress=STEP_PROGRESS["revise"], error_message="")
+    lang = state.get("lang", "ja")
     client = OllamaClient()
     review = state.get("review", {})
+    fallback_instruction = "草案を改善してください。" if lang == "ja" else "Please improve the draft."
     final_markdown = client.chat(
         settings.reasoning_model,
         [
-            {"role": "system", "content": SYSTEM_SUPERVISOR},
+            {"role": "system", "content": get_system_supervisor(lang)},
             {
                 "role": "user",
-                "content": REVISION_PROMPT.format(
-                    revision_instruction=review.get("revision_instruction", "草案を改善してください。"),
+                "content": get_revision_prompt(lang).format(
+                    instruction=state["instruction"],
+                    revision_instruction=review.get("revision_instruction", fallback_instruction),
                     draft=state["draft_markdown"],
                 ),
             },
@@ -315,7 +375,7 @@ def revise_node(state: MemoState) -> MemoState:
         state,
         {
             "final_markdown": final_markdown,
-            "logs": _log(state, "revise", "レビュー結果を反映しました。"),
+            "logs": _log(state, "revise", _lmsg(state, "revise")),
         },
         "revise",
     )
@@ -327,24 +387,50 @@ def pass_node(state: MemoState) -> MemoState:
         state,
         {
             "final_markdown": state["draft_markdown"],
-            "logs": _log(state, "accept", "草案をそのまま採用しました。"),
+            "logs": _log(state, "accept", _lmsg(state, "accept")),
         },
         "accept",
     )
 
 
+def _derive_note_title(markdown: str) -> str:
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped[2:].strip() or "research_memo"
+
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped in {"---", "```"}:
+            continue
+        candidate = stripped.strip("|").strip()
+        candidate = candidate.removeprefix("#").strip()
+        candidate = candidate.lstrip("-*0123456789.> ").strip()
+        if candidate and not set(candidate) <= {"-", ":", "|"}:
+            return candidate[:80]
+
+    return "research_memo"
+
+
 def save_node(state: MemoState) -> MemoState:
     state = _persist_state(state, status="running", current_step="save", progress=STEP_PROGRESS["save"], error_message="")
     final_markdown = state.get("final_markdown") or state.get("draft_markdown", "")
-    title = "research_memo"
-    first_heading = next((line[2:].strip() for line in final_markdown.splitlines() if line.startswith("# ")), None)
-    if first_heading:
-        title = first_heading
+    title = _derive_note_title(final_markdown)
     note_path = save_markdown_note(title=title, body=final_markdown)
+    chat_index = build_run_chat_index(
+        run_id=state["run_id"],
+        instruction=state["instruction"],
+        lang=state.get("lang", "ja"),
+        extracted_docs=state.get("extracted_docs", []),
+        related_notes=state.get("related_notes", []),
+        final_markdown=final_markdown,
+        note_path=str(note_path),
+    )
+    save_run_chat_index(state["run_id"], chat_index)
     result = {
         "saved_note_path": str(note_path),
         "final_markdown": final_markdown,
-        "logs": _log(state, "save", "研究メモを保存しました。", {"note_path": str(note_path)}),
+        "logs": _log(state, "save", _lmsg(state, "save"), {"note_path": str(note_path)}),
     }
     return _persist_node_result(state, result, "save")
 
@@ -381,6 +467,7 @@ def run_workflow(
     *,
     run_id: str | None = None,
     created_at: str | None = None,
+    lang: str = "ja",
 ) -> dict[str, Any]:
     state = build_initial_state(
         instruction,
@@ -388,6 +475,7 @@ def run_workflow(
         run_id=run_id,
         created_at=created_at,
         status="running",
+        lang=lang,
     )
     state = _persist_state(state, status="running", current_step="intake", progress=STEP_PROGRESS["intake"], error_message="")
 
@@ -412,7 +500,7 @@ def run_workflow(
             {
                 "time": now_iso(),
                 "step": "error",
-                "message": "ワークフローの実行中にエラーが発生しました。",
+                "message": _LOG_MESSAGES.get(state.get("lang", "ja"), _LOG_MESSAGES["ja"])["error"],
                 "extra": {"error": str(exc)},
             }
         )

@@ -1,18 +1,42 @@
 <!doctype html>
-<html lang="ja">
+<html lang="ja" id="html-root">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MemoForge</title>
     <link rel="stylesheet" href="/static/style.css" />
+    <style>
+      .lang-toggle {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        padding: 0.2rem 0.6rem;
+        min-width: 2.4rem;
+        text-align: center;
+        color: rgba(246, 241, 233, 0.7);
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      .lang-toggle:hover {
+        color: rgba(246, 241, 233, 1);
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+      .hero-eyebrow-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+    </style>
   </head>
   <body>
     <div class="page-glow" aria-hidden="true"></div>
     <header class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">MemoForge</p>
-        <h1>研究資料を、次に使えるラボノートへ。</h1>
-        <p class="hero-text">
+        <div class="hero-eyebrow-row">
+          <p class="eyebrow">MemoForge</p>
+          <button id="lang-toggle" class="ghost-button lang-toggle" type="button">EN</button>
+        </div>
+        <h1 data-i18n="hero.title">研究資料を、次に使えるラボノートへ。</h1>
+        <p class="hero-text" data-i18n="hero.body">
           PDF、画像、Markdown、テキストをまとめて読み取り、背景・要点・根拠・次の行動が見える Markdown ノートに整理します。
         </p>
         <div class="hero-tags">
@@ -42,63 +66,63 @@
       <section class="panel composer-panel reveal">
         <div class="section-head">
           <div>
-            <p class="section-kicker">Compose</p>
-            <h2>新しい整理ジョブ</h2>
+            <p class="section-kicker" data-i18n="compose.kicker">Compose</p>
+            <h2 data-i18n="compose.title">新しい整理ジョブ</h2>
           </div>
-          <p class="section-copy">テンプレートから始めて、資料を添付し、そのまま研究メモを作れます。</p>
+          <p class="section-copy" data-i18n="compose.body">テンプレートから始めて、資料を添付し、そのまま研究メモを作れます。</p>
         </div>
 
         <div class="template-strip">
           <button
             class="template-chip"
             type="button"
-            data-template="添付資料を統合し、研究背景・主要な主張・根拠・残る論点・次のアクションに整理してください。"
-          >
-            論文整理
-          </button>
+            data-template-key="template.paper.text"
+            data-i18n="template.paper"
+          >論文整理</button>
           <button
             class="template-chip"
             type="button"
-            data-template="複数資料の共通点と相違点を比較し、重要な比較軸と判断材料を箇条書きで整理してください。"
-          >
-            比較メモ
-          </button>
+            data-template-key="template.compare.text"
+            data-i18n="template.compare"
+          >比較メモ</button>
           <button
             class="template-chip"
             type="button"
-            data-template="添付資料をもとに、次の実験候補、確認すべき仮説、必要な追加データを研究メモ形式でまとめてください。"
-          >
-            実験計画
-          </button>
+            data-template-key="template.experiment.text"
+            data-i18n="template.experiment"
+          >実験計画</button>
           <button
             class="template-chip"
             type="button"
-            data-template="図や本文から読み取れることと、まだ断定できないことを分けて、レビュー準備用メモに整理してください。"
-          >
-            査読準備
-          </button>
+            data-template-key="template.review.text"
+            data-i18n="template.review"
+          >査読準備</button>
         </div>
 
         <form id="run-form" class="composer-form">
+          <input type="hidden" id="lang-input" name="lang" value="ja" />
           <label class="field" for="instruction">
-            <span class="field-label">依頼文</span>
+            <span class="field-label" data-i18n="form.instruction.label">依頼文</span>
             <textarea
               id="instruction"
               name="instruction"
               rows="9"
+              data-i18n-placeholder="form.instruction.placeholder"
               placeholder="例: 添付PDFとメモを統合して、背景・主要結果・次の実験候補に整理してください。"
             ></textarea>
           </label>
 
           <div class="field">
-            <span class="field-label">資料を追加</span>
+            <span class="field-label" data-i18n="form.files.label">資料を追加</span>
             <input id="file-input" type="file" name="files" multiple hidden />
-            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="ファイルを追加">
+            <div id="dropzone" class="dropzone" tabindex="0" role="button"
+              aria-label="ファイルを追加" data-i18n-aria="form.dropzone.aria">
               <div class="dropzone-copy">
                 <strong>Drag &amp; drop your files</strong>
-                <p>PDF / PNG / JPG / MD / TXT などをまとめて追加できます。</p>
+                <p data-i18n="form.dropzone.body">PDF / PNG / JPG / MD / TXT などをまとめて追加できます。</p>
               </div>
-              <button id="select-files-btn" class="secondary-button" type="button">ファイルを選択</button>
+              <button id="select-files-btn" class="secondary-button" type="button"
+                data-i18n="form.select.files">ファイルを選択</button>
             </div>
             <ul id="file-list" class="file-list">
               <li class="file-empty">まだファイルは追加されていません。</li>
@@ -108,7 +132,7 @@
           <section id="status-card" class="status-card" aria-live="polite">
             <div class="status-topline">
               <div>
-                <p class="section-kicker">Workflow Status</p>
+                <p class="section-kicker" data-i18n="status.kicker">Workflow Status</p>
                 <h3 id="status-label">待機中</h3>
               </div>
               <span id="status-badge" class="status-badge idle">Idle</span>
@@ -121,8 +145,11 @@
           </section>
 
           <div class="action-row">
-            <button id="submit-btn" class="primary-button" type="submit">整理を実行<kbd class="kbd-hint">Ctrl ↵</kbd></button>
-            <button id="clear-btn" class="ghost-button" type="button">入力をクリア</button>
+            <button id="submit-btn" class="primary-button" type="submit">
+              <span data-i18n="status.submit">整理を実行</span><kbd class="kbd-hint">Ctrl ↵</kbd>
+            </button>
+            <button id="clear-btn" class="ghost-button" type="button"
+              data-i18n="status.clear">入力をクリア</button>
           </div>
         </form>
       </section>
@@ -130,8 +157,8 @@
       <section class="panel inspector-panel reveal">
         <div class="section-head inspector-head">
           <div>
-            <p class="section-kicker">Review</p>
-            <h2>Run Review</h2>
+            <p class="section-kicker" data-i18n="review.kicker">Review</p>
+            <h2 data-i18n="review.title">Run Review</h2>
           </div>
           <span id="result-state" class="result-state idle">No run</span>
         </div>
@@ -139,7 +166,7 @@
         <div class="summary-grid">
           <article class="summary-card">
             <span class="summary-label">Run ID</span>
-            <strong id="meta-run-id">未実行</strong>
+            <strong id="meta-run-id">-</strong>
           </article>
           <article class="summary-card">
             <span class="summary-label">Created</span>
@@ -155,13 +182,14 @@
           <button class="tab-button active" type="button" role="tab" aria-selected="true" data-tab="overview">Overview</button>
           <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="process">Process</button>
           <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="note">Note</button>
+          <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="chat" data-i18n="chat.tab">Chat</button>
         </div>
 
         <section class="tab-panel active" data-tab-panel="overview">
           <div class="overview-grid">
             <article class="overview-card">
               <span class="summary-label">Review</span>
-              <strong id="overview-status">未実行</strong>
+              <strong id="overview-status">-</strong>
             </article>
             <article class="overview-card">
               <span class="summary-label">Attachments</span>
@@ -179,16 +207,14 @@
 
           <article class="insight-card">
             <p class="section-kicker">Instruction</p>
-            <h3 id="overview-title">まだジョブはありません。</h3>
-            <p id="overview-instruction" class="insight-body">
-              最初のジョブを実行すると、ここに整理対象の概要と関連ノートが表示されます。
-            </p>
+            <h3 id="overview-title">-</h3>
+            <p id="overview-instruction" class="insight-body">-</p>
           </article>
 
           <article class="insight-card">
             <p class="section-kicker">Related Notes</p>
             <div id="related-notes-list" class="related-notes">
-              <p class="empty-copy">関連ノートはまだありません。</p>
+              <p class="empty-copy">-</p>
             </div>
           </article>
         </section>
@@ -198,14 +224,14 @@
             <article class="process-card">
               <p class="section-kicker">Plan</p>
               <ol id="plan" class="timeline">
-                <li class="empty-copy">まだ計画はありません。</li>
+                <li class="empty-copy">-</li>
               </ol>
             </article>
 
             <article class="process-card">
               <p class="section-kicker">Execution Log</p>
               <div id="logs" class="log-stack">
-                <p class="empty-copy">ジョブを実行するとログが表示されます。</p>
+                <p class="empty-copy">-</p>
               </div>
             </article>
           </div>
@@ -213,22 +239,57 @@
 
         <section class="tab-panel" data-tab-panel="note">
           <div class="note-toolbar">
-            <span id="note-path-chip" class="note-path-chip">未保存</span>
-            <button id="copy-note-btn" class="ghost-button small-button" type="button">Markdown をコピー</button>
+            <span id="note-path-chip" class="note-path-chip">-</span>
+            <button id="copy-note-btn" class="ghost-button small-button" type="button"
+              data-i18n="note.copy">Markdown をコピー</button>
           </div>
           <article id="final-markdown" class="memo-rendered">
-            <p class="empty-copy">最終メモはここに表示されます。</p>
+            <p class="empty-copy">-</p>
           </article>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="chat">
+          <div class="chat-toolbar">
+            <div class="chat-mode-group" role="group" aria-label="Chat mode">
+              <button id="chat-mode-ask" class="chat-mode-button active" type="button" data-chat-mode="ask" data-i18n="chat.mode.ask">Ask</button>
+              <button id="chat-mode-discuss" class="chat-mode-button" type="button" data-chat-mode="discuss" data-i18n="chat.mode.discuss">Discuss</button>
+            </div>
+            <button id="clear-chat-btn" class="ghost-button small-button" type="button" data-i18n="chat.clear">Clear Chat</button>
+          </div>
+
+          <p id="chat-status" class="chat-status" data-i18n="chat.status.waiting_run">
+            Select a completed run to ask follow-up questions.
+          </p>
+
+          <div id="chat-followups" class="chat-followups">
+            <button class="suggestion-chip" type="button" disabled data-i18n="chat.suggestion.placeholder">Suggestions will appear here.</button>
+          </div>
+
+          <div id="chat-messages" class="chat-messages">
+            <p class="empty-copy" data-i18n="chat.empty">No chat messages yet.</p>
+          </div>
+
+          <form id="chat-form" class="chat-form">
+            <textarea
+              id="chat-input"
+              rows="4"
+              data-i18n-placeholder="chat.input.placeholder.ask"
+              placeholder="Ask something more specific about this run."
+            ></textarea>
+            <div class="chat-action-row">
+              <button id="chat-send-btn" class="primary-button" type="submit" data-i18n="chat.send">Send</button>
+            </div>
+          </form>
         </section>
       </section>
 
       <aside class="panel history-panel reveal">
         <div class="section-head">
           <div>
-            <p class="section-kicker">History</p>
-            <h2>最近のジョブ</h2>
+            <p class="section-kicker" data-i18n="history.kicker">History</p>
+            <h2 data-i18n="history.title">最近のジョブ</h2>
           </div>
-          <p class="section-copy">保存済みの run を開いて、過去のメモやログをすぐ見返せます。</p>
+          <p class="section-copy" data-i18n="history.body">保存済みの run を開いて、過去のメモやログをすぐ見返せます。</p>
         </div>
 
         <div id="run-list" class="history-list">
@@ -242,8 +303,8 @@
             {% endfor %}
           {% else %}
             <div class="history-empty">
-              <strong>まだ保存済みジョブはありません。</strong>
-              <p>最初の研究メモを作ると、ここに履歴が蓄積されます。</p>
+              <strong data-i18n="history.empty.title">まだ保存済みジョブはありません。</strong>
+              <p data-i18n="history.empty.body">最初の研究メモを作ると、ここに履歴が蓄積されます。</p>
             </div>
           {% endif %}
         </div>
@@ -251,23 +312,291 @@
     </main>
 
     <script>
-      const progressPhases = [
-        { label: "入力準備", detail: "依頼文と添付資料をまとめています。", progress: 12 },
-        { label: "本文と図の抽出", detail: "本文・図・PDF ページを読み取っています。", progress: 38 },
-        { label: "メモ草案の整理", detail: "背景、要点、根拠、次の行動を構造化しています。", progress: 71 },
-        { label: "レビューと保存", detail: "最終確認を行い、ノートへ保存しています。", progress: 92 }
-      ];
-      const phaseStatusMap = {
-        queued: { index: 0, label: "ジョブ受付", detail: "バックグラウンドで整理ジョブを開始しています。", progress: 4 },
-        intake: { index: 0, label: progressPhases[0].label, detail: progressPhases[0].detail, progress: progressPhases[0].progress },
-        extract: { index: 1, label: progressPhases[1].label, detail: progressPhases[1].detail, progress: progressPhases[1].progress },
-        retrieve: { index: 1, label: "関連ノート検索", detail: "既存のノートから関連メモを探しています。", progress: 52 },
-        structure: { index: 2, label: progressPhases[2].label, detail: progressPhases[2].detail, progress: progressPhases[2].progress },
-        review: { index: 3, label: "レビュー中", detail: "草案を見直しています。", progress: 84 },
-        revise: { index: 3, label: "修正反映", detail: "レビュー指摘をメモに反映しています。", progress: 92 },
-        accept: { index: 3, label: "最終確認", detail: "レビュー結果を確認しています。", progress: 92 },
-        save: { index: 3, label: "保存中", detail: "研究メモを保存しています。", progress: 98 }
+      // ── i18n ──────────────────────────────────────────────────────────────
+      const I18N = {
+        ja: {
+          "hero.title": "研究資料を、次に使えるラボノートへ。",
+          "hero.body": "PDF、画像、Markdown、テキストをまとめて読み取り、背景・要点・根拠・次の行動が見える Markdown ノートに整理します。",
+          "compose.kicker": "Compose",
+          "compose.title": "新しい整理ジョブ",
+          "compose.body": "テンプレートから始めて、資料を添付し、そのまま研究メモを作れます。",
+          "template.paper": "論文整理",
+          "template.compare": "比較メモ",
+          "template.experiment": "実験計画",
+          "template.review": "査読準備",
+          "template.paper.text": "添付資料を統合し、研究背景・主要な主張・根拠・残る論点・次のアクションに整理してください。",
+          "template.compare.text": "複数資料の共通点と相違点を比較し、重要な比較軸と判断材料を箇条書きで整理してください。",
+          "template.experiment.text": "添付資料をもとに、次の実験候補、確認すべき仮説、必要な追加データを研究メモ形式でまとめてください。",
+          "template.review.text": "図や本文から読み取れることと、まだ断定できないことを分けて、レビュー準備用メモに整理してください。",
+          "form.instruction.label": "依頼文",
+          "form.instruction.placeholder": "例: 添付PDFとメモを統合して、背景・主要結果・次の実験候補に整理してください。",
+          "form.files.label": "資料を追加",
+          "form.dropzone.aria": "ファイルを追加",
+          "form.dropzone.body": "PDF / PNG / JPG / MD / TXT などをまとめて追加できます。",
+          "form.select.files": "ファイルを選択",
+          "form.files.empty": "まだファイルは追加されていません。",
+          "status.kicker": "Workflow Status",
+          "status.idle.label": "待機中",
+          "status.idle.detail": "依頼文と資料を準備したら、整理を実行してください。",
+          "status.submit": "整理を実行",
+          "status.clear": "入力をクリア",
+          "review.kicker": "Review",
+          "review.title": "Run Review",
+          "overview.status.not_run": "未実行",
+          "overview.status.failed": "失敗",
+          "overview.status.running": "処理中",
+          "overview.instruction.empty_title": "まだジョブはありません。",
+          "overview.instruction.empty_body": "最初のジョブを実行すると、ここに整理対象の概要と関連ノートが表示されます。",
+          "overview.related.empty": "関連ノートはまだありません。",
+          "overview.related.empty_found": "関連ノートは見つかりませんでした。",
+          "overview.plan.empty": "まだ計画はありません。",
+          "overview.logs.empty": "ジョブを実行するとログが表示されます。",
+          "note.unsaved": "未保存",
+          "note.copy": "Markdown をコピー",
+          "note.empty": "最終メモはここに表示されます。",
+          "note.generating": "メモを生成中です。進捗は Process タブでも確認できます。",
+          "note.failed": "メモの生成に失敗しました。Process タブのログを確認してください。",
+          "note.none": "最終メモはまだありません。",
+          "history.kicker": "History",
+          "history.title": "最近のジョブ",
+          "history.body": "保存済みの run を開いて、過去のメモやログをすぐ見返せます。",
+          "history.empty.title": "まだ保存済みジョブはありません。",
+          "history.empty.body": "最初の研究メモを作ると、ここに履歴が蓄積されます。",
+          "phase.0.label": "入力準備",
+          "phase.0.detail": "依頼文と添付資料をまとめています。",
+          "phase.1.label": "本文と図の抽出",
+          "phase.1.detail": "本文・図・PDF ページを読み取っています。",
+          "phase.2.label": "メモ草案の整理",
+          "phase.2.detail": "背景、要点、根拠、次の行動を構造化しています。",
+          "phase.3.label": "レビューと保存",
+          "phase.3.detail": "最終確認を行い、ノートへ保存しています。",
+          "phase.queued.label": "ジョブ受付",
+          "phase.queued.detail": "バックグラウンドで整理ジョブを開始しています。",
+          "phase.retrieve.label": "関連ノート検索",
+          "phase.retrieve.detail": "既存のノートから関連メモを探しています。",
+          "phase.review.label": "レビュー中",
+          "phase.review.detail": "草案を見直しています。",
+          "phase.revise.label": "修正反映",
+          "phase.revise.detail": "レビュー指摘をメモに反映しています。",
+          "phase.accept.label": "最終確認",
+          "phase.accept.detail": "レビュー結果を確認しています。",
+          "phase.save.label": "保存中",
+          "phase.save.detail": "研究メモを保存しています。",
+          "time.just_now": "今すぐ",
+          "time.minutes_ago": "{n}分前",
+          "time.hours_ago": "{n}時間前",
+          "time.days_ago": "{n}日前",
+          "time.locale": "ja-JP",
+          "status.failed.load": "保存済み run の読み込みに失敗しました。",
+          "status.failed.label": "実行に失敗",
+          "status.failed.detail": "ワークフローの実行中にエラーが発生しました。",
+          "status.success.label": "保存完了",
+          "status.success.detail": "研究メモを保存しました。右側の Note タブで内容を確認できます。",
+          "verdict.revise": "修正して保存",
+          "verdict.accept": "レビュー通過",
+          "note.default_title": "研究メモ",
+          "overview.no_instruction": "依頼文はありません。",
+          "submit.running.label": "ジョブ登録中",
+          "submit.running.detail": "整理ジョブを作成しています。",
+          "submit.error.server": "ジョブの実行に失敗しました。サーバー設定を確認してください。",
+          "submit.error.label": "実行に失敗",
+          "submit.error.unexpected": "予期しないエラーが発生しました。",
+          "load.error.label": "読み込み失敗",
+          "load.error.detail": "保存済みジョブを読み込めませんでした。",
+          "load.error.initial": "初期ジョブの表示に失敗しました。",
+          "copy.success": "コピーしました",
+          "copy.fail": "コピー失敗",
+          "form.error.label": "依頼文が必要です",
+          "form.error.detail": "整理を実行する前に、依頼文を入力してください。",
+          "chat.tab": "Chat",
+          "chat.mode.ask": "質問",
+          "chat.mode.discuss": "深掘り",
+          "chat.clear": "会話をクリア",
+          "chat.send": "送信",
+          "chat.empty": "まだチャットはありません。",
+          "chat.status.waiting_run": "完了した run を選ぶと、この資料について追質問できます。",
+          "chat.status.running_run": "この run はまだ処理中です。整理が完了するとチャットできます。",
+          "chat.status.failed_run": "この run は失敗しているため、チャットを開始できません。",
+          "chat.status.ready": "資料に基づいて質問へ答えます。必要なら仮説や次の論点も一緒に提案します。",
+          "chat.status.loading": "チャット履歴を読み込んでいます。",
+          "chat.status.sending": "回答を生成しています。",
+          "chat.status.error": "チャットの読み込みまたは応答生成に失敗しました。",
+          "chat.input.placeholder.ask": "この run の内容について、より詳しく知りたい点を質問してください。",
+          "chat.input.placeholder.discuss": "この結果の解釈、仮説、次の実験案などを議論してみましょう。",
+          "chat.suggestion.placeholder": "候補はここに表示されます。",
+          "chat.suggest.ask.1": "この資料の重要な主張を3点に絞ると？",
+          "chat.suggest.ask.2": "この結論を支えている根拠はどこ？",
+          "chat.suggest.ask.3": "まだ不明な点や要検証の点は？",
+          "chat.suggest.discuss.1": "次に確認すべき仮説は何？",
+          "chat.suggest.discuss.2": "別の解釈があり得るとしたら？",
+          "chat.suggest.discuss.3": "追加で集めるべきデータは？",
+          "chat.error.load": "チャット履歴を読み込めませんでした。",
+          "chat.error.send": "チャットの送信に失敗しました。",
+          "chat.error.clear": "チャット履歴を消去できませんでした。",
+          "chat.citation.page": "page {n}",
+        },
+        en: {
+          "hero.title": "Turn research materials into reusable lab notes.",
+          "hero.body": "Read PDFs, images, Markdown, and text together, and organize them into Markdown notes with background, key points, evidence, and next actions.",
+          "compose.kicker": "Compose",
+          "compose.title": "New Organization Job",
+          "compose.body": "Start from a template, attach materials, and create a research note.",
+          "template.paper": "Paper Review",
+          "template.compare": "Comparison",
+          "template.experiment": "Experiment Plan",
+          "template.review": "Peer Review",
+          "template.paper.text": "Integrate the attached materials and organize them into research background, main claims, evidence, open questions, and next actions.",
+          "template.compare.text": "Compare multiple materials for similarities and differences, and organize key comparison dimensions and decision criteria as bullet points.",
+          "template.experiment.text": "Based on the attached materials, summarize the next experiment candidates, hypotheses to verify, and additional data needed in research note format.",
+          "template.review.text": "Separate what can be read from figures and text versus what cannot yet be concluded, and organize into a review preparation note.",
+          "form.instruction.label": "Instruction",
+          "form.instruction.placeholder": "e.g. Integrate the attached PDF and notes, and organize into background, key findings, and next experiment candidates.",
+          "form.files.label": "Add Materials",
+          "form.dropzone.aria": "Add files",
+          "form.dropzone.body": "Add PDFs, images, Markdown, text files, and more.",
+          "form.select.files": "Select Files",
+          "form.files.empty": "No files added yet.",
+          "status.kicker": "Workflow Status",
+          "status.idle.label": "Idle",
+          "status.idle.detail": "Prepare an instruction and materials, then run organization.",
+          "status.submit": "Run",
+          "status.clear": "Clear",
+          "review.kicker": "Review",
+          "review.title": "Run Review",
+          "overview.status.not_run": "Not started",
+          "overview.status.failed": "Failed",
+          "overview.status.running": "Processing",
+          "overview.instruction.empty_title": "No jobs yet.",
+          "overview.instruction.empty_body": "Run your first job to see the overview and related notes here.",
+          "overview.related.empty": "No related notes yet.",
+          "overview.related.empty_found": "No related notes found.",
+          "overview.plan.empty": "No plan yet.",
+          "overview.logs.empty": "Run a job to see logs here.",
+          "note.unsaved": "Unsaved",
+          "note.copy": "Copy Markdown",
+          "note.empty": "The final note will appear here.",
+          "note.generating": "Generating note. You can also check progress in the Process tab.",
+          "note.failed": "Note generation failed. Check logs in the Process tab.",
+          "note.none": "No final note yet.",
+          "history.kicker": "History",
+          "history.title": "Recent Jobs",
+          "history.body": "Open a saved run to review past notes and logs.",
+          "history.empty.title": "No saved jobs yet.",
+          "history.empty.body": "Your history will appear here after creating your first research note.",
+          "phase.0.label": "Input Setup",
+          "phase.0.detail": "Preparing instruction and attachments.",
+          "phase.1.label": "Text & Figure Extraction",
+          "phase.1.detail": "Reading text, figures, and PDF pages.",
+          "phase.2.label": "Draft Organization",
+          "phase.2.detail": "Structuring background, key points, evidence, and next actions.",
+          "phase.3.label": "Review & Save",
+          "phase.3.detail": "Performing final review and saving to notes.",
+          "phase.queued.label": "Job Queued",
+          "phase.queued.detail": "Starting organization job in the background.",
+          "phase.retrieve.label": "Related Note Search",
+          "phase.retrieve.detail": "Searching existing notes for related memos.",
+          "phase.review.label": "Reviewing",
+          "phase.review.detail": "Reviewing the draft.",
+          "phase.revise.label": "Applying Revisions",
+          "phase.revise.detail": "Applying review feedback to the note.",
+          "phase.accept.label": "Final Check",
+          "phase.accept.detail": "Confirming review results.",
+          "phase.save.label": "Saving",
+          "phase.save.detail": "Saving the research note.",
+          "time.just_now": "just now",
+          "time.minutes_ago": "{n}m ago",
+          "time.hours_ago": "{n}h ago",
+          "time.days_ago": "{n}d ago",
+          "time.locale": "en-US",
+          "status.failed.load": "Failed to load saved run.",
+          "status.failed.label": "Execution Failed",
+          "status.failed.detail": "An error occurred during workflow execution.",
+          "status.success.label": "Saved",
+          "status.success.detail": "Research note saved. You can check the contents in the Note tab on the right.",
+          "verdict.revise": "Revised & Saved",
+          "verdict.accept": "Review Passed",
+          "note.default_title": "Research Note",
+          "overview.no_instruction": "No instruction.",
+          "submit.running.label": "Submitting Job",
+          "submit.running.detail": "Creating organization job.",
+          "submit.error.server": "Job execution failed. Check server settings.",
+          "submit.error.label": "Execution Failed",
+          "submit.error.unexpected": "An unexpected error occurred.",
+          "load.error.label": "Load Failed",
+          "load.error.detail": "Could not load saved job.",
+          "load.error.initial": "Failed to display the initial job.",
+          "copy.success": "Copied!",
+          "copy.fail": "Copy Failed",
+          "form.error.label": "Instruction Required",
+          "form.error.detail": "Please enter an instruction before running.",
+          "chat.tab": "Chat",
+          "chat.mode.ask": "Ask",
+          "chat.mode.discuss": "Discuss",
+          "chat.clear": "Clear Chat",
+          "chat.send": "Send",
+          "chat.empty": "No chat messages yet.",
+          "chat.status.waiting_run": "Select a completed run to ask follow-up questions.",
+          "chat.status.running_run": "This run is still processing. Chat will be available when organization finishes.",
+          "chat.status.failed_run": "This run failed, so chat is not available.",
+          "chat.status.ready": "Ask grounded follow-up questions about this run, or switch to Discuss for deeper exploration.",
+          "chat.status.loading": "Loading chat history.",
+          "chat.status.sending": "Generating answer.",
+          "chat.status.error": "Failed to load chat history or generate a reply.",
+          "chat.input.placeholder.ask": "Ask something more specific about this run.",
+          "chat.input.placeholder.discuss": "Discuss interpretations, hypotheses, or next experiments.",
+          "chat.suggestion.placeholder": "Suggestions will appear here.",
+          "chat.suggest.ask.1": "What are the three most important claims here?",
+          "chat.suggest.ask.2": "Which evidence supports the conclusion most strongly?",
+          "chat.suggest.ask.3": "What remains uncertain or should be verified?",
+          "chat.suggest.discuss.1": "What hypothesis should we test next?",
+          "chat.suggest.discuss.2": "What alternative interpretation is plausible?",
+          "chat.suggest.discuss.3": "What extra data would reduce uncertainty?",
+          "chat.error.load": "Failed to load chat history.",
+          "chat.error.send": "Failed to send the chat message.",
+          "chat.error.clear": "Failed to clear chat history.",
+          "chat.citation.page": "page {n}",
+        }
       };
+
+      const LANG_KEY = "memoforge-lang";
+      let currentLang = localStorage.getItem(LANG_KEY) || "ja";
+
+      function t(key) {
+        return (I18N[currentLang] || I18N.ja)[key] || key;
+      }
+
+      function tf(key, vars) {
+        let str = t(key);
+        for (const [k, v] of Object.entries(vars)) {
+          str = str.replace("{" + k + "}", v);
+        }
+        return str;
+      }
+
+      function getProgressPhases() {
+        return [
+          { label: t("phase.0.label"), detail: t("phase.0.detail"), progress: 12 },
+          { label: t("phase.1.label"), detail: t("phase.1.detail"), progress: 38 },
+          { label: t("phase.2.label"), detail: t("phase.2.detail"), progress: 71 },
+          { label: t("phase.3.label"), detail: t("phase.3.detail"), progress: 92 },
+        ];
+      }
+
+      function getPhaseStatusMap() {
+        const phases = getProgressPhases();
+        return {
+          queued:    { index: 0, label: t("phase.queued.label"),    detail: t("phase.queued.detail"),    progress: 4 },
+          intake:    { index: 0, label: phases[0].label,            detail: phases[0].detail,            progress: phases[0].progress },
+          extract:   { index: 1, label: phases[1].label,            detail: phases[1].detail,            progress: phases[1].progress },
+          retrieve:  { index: 1, label: t("phase.retrieve.label"),  detail: t("phase.retrieve.detail"),  progress: 52 },
+          structure: { index: 2, label: phases[2].label,            detail: phases[2].detail,            progress: phases[2].progress },
+          review:    { index: 3, label: t("phase.review.label"),    detail: t("phase.review.detail"),    progress: 84 },
+          revise:    { index: 3, label: t("phase.revise.label"),    detail: t("phase.revise.detail"),    progress: 92 },
+          accept:    { index: 3, label: t("phase.accept.label"),    detail: t("phase.accept.detail"),    progress: 92 },
+          save:      { index: 3, label: t("phase.save.label"),      detail: t("phase.save.detail"),      progress: 98 },
+        };
+      }
+
       const activeRunStatuses = new Set(["queued", "running"]);
 
       const runForm = document.getElementById("run-form");
@@ -302,12 +631,75 @@
       const logsContainer = document.getElementById("logs");
       const notePathChip = document.getElementById("note-path-chip");
       const finalMarkdown = document.getElementById("final-markdown");
+      const langToggle = document.getElementById("lang-toggle");
+      const langInput = document.getElementById("lang-input");
+      const chatForm = document.getElementById("chat-form");
+      const chatInput = document.getElementById("chat-input");
+      const chatSendButton = document.getElementById("chat-send-btn");
+      const clearChatButton = document.getElementById("clear-chat-btn");
+      const chatStatus = document.getElementById("chat-status");
+      const chatMessages = document.getElementById("chat-messages");
+      const chatFollowups = document.getElementById("chat-followups");
+      const chatModeButtons = Array.from(document.querySelectorAll("[data-chat-mode]"));
 
       let selectedFiles = [];
       let pollTimer = null;
       let activePollRunId = "";
       let rawNoteMarkdown = "";
+      let currentRun = null;
+      let currentChatMode = "ask";
+      let currentChatRunId = "";
+      let currentChatReady = false;
+      let currentChatMessages = [];
+      let chatRequestRunId = "";
 
+      // ── Translation application ──────────────────────────────────────────
+      function applyTranslations() {
+        document.getElementById("html-root").lang = currentLang;
+        langToggle.textContent = currentLang === "ja" ? "EN" : "JP";
+        langInput.value = currentLang;
+
+        document.querySelectorAll("[data-i18n]").forEach((el) => {
+          el.textContent = t(el.dataset.i18n);
+        });
+        document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+          el.placeholder = t(el.dataset.i18nPlaceholder);
+        });
+        document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+          el.setAttribute("aria-label", t(el.dataset.i18nAria));
+        });
+        document.querySelectorAll(".template-chip[data-template-key]").forEach((btn) => {
+          btn.dataset.template = t(btn.dataset.templateKey);
+        });
+        chatInput.placeholder = currentChatPlaceholder();
+
+        // Re-render dynamic content with new language
+        renderFileList();
+        if (currentRun) {
+          renderRun(currentRun);
+        } else {
+          renderPhaseList();
+          setStatus("idle", t("status.idle.label"), t("status.idle.detail"), 0);
+          overviewTitle.textContent = t("overview.instruction.empty_title");
+          overviewInstruction.textContent = t("overview.instruction.empty_body");
+          overviewStatus.textContent = t("overview.status.not_run");
+          metaRunId.textContent = "-";
+          metaNotePath.textContent = "-";
+          notePathChip.textContent = t("note.unsaved");
+          relatedNotesList.innerHTML = `<p class="empty-copy">${escapeHtml(t("overview.related.empty"))}</p>`;
+          planList.innerHTML = `<li class="empty-copy">${escapeHtml(t("overview.plan.empty"))}</li>`;
+          logsContainer.innerHTML = `<p class="empty-copy">${escapeHtml(t("overview.logs.empty"))}</p>`;
+          finalMarkdown.innerHTML = `<p class="empty-copy">${escapeHtml(t("note.empty"))}</p>`;
+          currentChatMessages = [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(defaultChatSuggestions(currentChatMode));
+          setChatComposerEnabled(false);
+          setChatStatusText(t("chat.status.waiting_run"));
+        }
+        setChatMode(currentChatMode);
+      }
+
+      // ── Utilities ────────────────────────────────────────────────────────
       function escapeHtml(value) {
         return String(value)
           .replace(/&/g, "&amp;")
@@ -324,13 +716,13 @@
           if (isNaN(d.getTime())) return isoString;
           const diffMs = Date.now() - d.getTime();
           const diffMin = Math.floor(diffMs / 60000);
-          if (diffMin < 1) return "今すぐ";
-          if (diffMin < 60) return `${diffMin}分前`;
+          if (diffMin < 1) return t("time.just_now");
+          if (diffMin < 60) return tf("time.minutes_ago", { n: diffMin });
           const diffHour = Math.floor(diffMin / 60);
-          if (diffHour < 24) return `${diffHour}時間前`;
+          if (diffHour < 24) return tf("time.hours_ago", { n: diffHour });
           const diffDay = Math.floor(diffHour / 24);
-          if (diffDay < 7) return `${diffDay}日前`;
-          return d.toLocaleDateString("ja-JP", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+          if (diffDay < 7) return tf("time.days_ago", { n: diffDay });
+          return d.toLocaleDateString(t("time.locale"), { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
         } catch (_) {
           return isoString;
         }
@@ -378,7 +770,7 @@
 
       function renderFileList() {
         if (!selectedFiles.length) {
-          fileList.innerHTML = '<li class="file-empty">まだファイルは追加されていません。</li>';
+          fileList.innerHTML = `<li class="file-empty">${escapeHtml(t("form.files.empty"))}</li>`;
           return;
         }
 
@@ -398,8 +790,9 @@
       }
 
       function renderPhaseList(mode = "idle", activeIndex = -1) {
-        const completedThreshold = mode === "success" ? progressPhases.length : activeIndex;
-        phaseList.innerHTML = progressPhases
+        const phases = getProgressPhases();
+        const completedThreshold = mode === "success" ? phases.length : activeIndex;
+        phaseList.innerHTML = phases
           .map((phase, index) => {
             let phaseClass = "pending";
             if (index < completedThreshold) phaseClass = "complete";
@@ -447,11 +840,12 @@
           : status === "completed"
             ? "save"
             : "queued";
+        const phaseMap = getPhaseStatusMap();
         const progress = Number.isFinite(Number(run && run.progress))
           ? Number(run.progress)
           : status === "completed"
             ? 100
-            : (phaseStatusMap[currentStep] || phaseStatusMap.queued).progress;
+            : (phaseMap[currentStep] || phaseMap.queued).progress;
 
         return {
           ...(run || {}),
@@ -463,7 +857,8 @@
       }
 
       function phaseIndexForRun(run) {
-        return (phaseStatusMap[run.current_step] || phaseStatusMap.queued).index;
+        const phaseMap = getPhaseStatusMap();
+        return (phaseMap[run.current_step] || phaseMap.queued).index;
       }
 
       function stopRunPolling() {
@@ -477,7 +872,7 @@
       async function fetchRun(runId) {
         const response = await fetch(`/api/runs/${runId}`);
         if (!response.ok) {
-          throw new Error("保存済み run の読み込みに失敗しました。");
+          throw new Error(t("status.failed.load"));
         }
         return normalizeRun(await response.json());
       }
@@ -516,7 +911,8 @@
 
       function syncStatusCard(run) {
         const normalizedRun = normalizeRun(run);
-        const phaseInfo = phaseStatusMap[normalizedRun.current_step] || phaseStatusMap.queued;
+        const phaseMap = getPhaseStatusMap();
+        const phaseInfo = phaseMap[normalizedRun.current_step] || phaseMap.queued;
         const latestLog = Array.isArray(normalizedRun.logs) && normalizedRun.logs.length
           ? normalizedRun.logs[normalizedRun.logs.length - 1]
           : null;
@@ -525,16 +921,16 @@
           renderPhaseList("error", phaseIndexForRun(normalizedRun));
           setStatus(
             "error",
-            "実行に失敗",
-            normalizedRun.error_message || "ワークフローの実行中にエラーが発生しました。",
+            t("status.failed.label"),
+            normalizedRun.error_message || t("status.failed.detail"),
             normalizedRun.progress || phaseInfo.progress
           );
           return normalizedRun;
         }
 
         if (normalizedRun.status === "completed") {
-          renderPhaseList("success", progressPhases.length);
-          setStatus("success", "保存完了", "研究メモを保存しました。右側の Note タブで内容を確認できます。", 100);
+          renderPhaseList("success", getProgressPhases().length);
+          setStatus("success", t("status.success.label"), t("status.success.detail"), 100);
           return normalizedRun;
         }
 
@@ -550,7 +946,7 @@
         }
 
         renderPhaseList();
-        setStatus("idle", "待機中", "依頼文と資料を準備したら、整理を実行してください。", 0);
+        setStatus("idle", t("status.idle.label"), t("status.idle.detail"), 0);
         return normalizedRun;
       }
 
@@ -580,13 +976,13 @@
 
       function extractTitle(markdown) {
         const match = String(markdown || "").match(/^#\s+(.+)$/m);
-        return match ? match[1].trim() : "研究メモ";
+        return match ? match[1].trim() : t("note.default_title");
       }
 
       function verdictLabel(review) {
         const verdict = String(review && review.verdict ? review.verdict : "accept").toLowerCase();
-        if (verdict === "revise") return "修正して保存";
-        return "レビュー通過";
+        if (verdict === "revise") return t("verdict.revise");
+        return t("verdict.accept");
       }
 
       function inlineMarkdown(text) {
@@ -594,6 +990,46 @@
           .replace(/`([^`]+)`/g, "<code>$1</code>")
           .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
           .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      }
+
+      function isMarkdownTableRow(line) {
+        return /^\s*\|?.+\|.+\|?\s*$/.test(line);
+      }
+
+      function isMarkdownTableDivider(line) {
+        return /^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?\s*$/.test(line);
+      }
+
+      function splitMarkdownTableRow(line) {
+        return String(line)
+          .trim()
+          .replace(/^\|/, "")
+          .replace(/\|$/, "")
+          .split("|")
+          .map((cell) => inlineMarkdown(cell.trim()));
+      }
+
+      function renderMarkdownTable(blockLines) {
+        if (blockLines.length < 2) return "";
+
+        const headerCells = splitMarkdownTableRow(blockLines[0]);
+        const bodyRows = blockLines.slice(2).map(splitMarkdownTableRow);
+        const columnCount = Math.max(
+          headerCells.length,
+          ...bodyRows.map((row) => row.length),
+        );
+        const normalizedHeaders = Array.from({ length: columnCount }, (_, index) => headerCells[index] || "");
+        const head = `<thead><tr>${normalizedHeaders.map((cell) => `<th>${cell}</th>`).join("")}</tr></thead>`;
+        const body = bodyRows.length
+          ? `<tbody>${bodyRows
+              .map((row) => {
+                const cells = Array.from({ length: columnCount }, (_, index) => `<td>${row[index] || ""}</td>`);
+                return `<tr>${cells.join("")}</tr>`;
+              })
+              .join("")}</tbody>`
+          : "";
+
+        return `<div class="table-wrap"><table>${head}${body}</table></div>`;
       }
 
       function renderMarkdown(markdown) {
@@ -626,7 +1062,8 @@
           }
         }
 
-        for (const line of lines) {
+        for (let index = 0; index < lines.length; index += 1) {
+          const line = lines[index];
           if (inCodeBlock) {
             if (line.trim().startsWith("```")) {
               html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
@@ -667,6 +1104,21 @@
             continue;
           }
 
+          const nextLine = lines[index + 1] || "";
+          if (isMarkdownTableRow(line) && isMarkdownTableDivider(nextLine)) {
+            flushParagraph();
+            closeList();
+            const tableLines = [line, nextLine];
+            let rowIndex = index + 2;
+            while (rowIndex < lines.length && isMarkdownTableRow(lines[rowIndex])) {
+              tableLines.push(lines[rowIndex]);
+              rowIndex += 1;
+            }
+            html.push(renderMarkdownTable(tableLines));
+            index = rowIndex - 1;
+            continue;
+          }
+
           if (/^\d+\.\s+/.test(line)) {
             flushParagraph();
             openList("ol");
@@ -704,7 +1156,7 @@
       function renderRelatedNotes(run) {
         const relatedNotes = Array.isArray(run.related_notes) ? run.related_notes : [];
         if (!relatedNotes.length) {
-          relatedNotesList.innerHTML = '<p class="empty-copy">関連ノートは見つかりませんでした。</p>';
+          relatedNotesList.innerHTML = `<p class="empty-copy">${escapeHtml(t("overview.related.empty_found"))}</p>`;
           return;
         }
 
@@ -723,7 +1175,7 @@
 
       function renderPlan(plan) {
         if (!Array.isArray(plan) || !plan.length) {
-          planList.innerHTML = '<li class="empty-copy">まだ計画はありません。</li>';
+          planList.innerHTML = `<li class="empty-copy">${escapeHtml(t("overview.plan.empty"))}</li>`;
           return;
         }
 
@@ -741,7 +1193,7 @@
 
       function renderLogs(logs) {
         if (!Array.isArray(logs) || !logs.length) {
-          logsContainer.innerHTML = '<p class="empty-copy">ジョブを実行するとログが表示されます。</p>';
+          logsContainer.innerHTML = `<p class="empty-copy">${escapeHtml(t("overview.logs.empty"))}</p>`;
           return;
         }
 
@@ -767,7 +1219,227 @@
           .join("");
       }
 
+      function defaultChatSuggestions(mode) {
+        const keys = mode === "discuss"
+          ? ["chat.suggest.discuss.1", "chat.suggest.discuss.2", "chat.suggest.discuss.3"]
+          : ["chat.suggest.ask.1", "chat.suggest.ask.2", "chat.suggest.ask.3"];
+        return keys.map((key) => t(key));
+      }
+
+      function currentChatPlaceholder() {
+        return currentChatMode === "discuss"
+          ? t("chat.input.placeholder.discuss")
+          : t("chat.input.placeholder.ask");
+      }
+
+      function setChatStatusText(text, tone = "") {
+        chatStatus.textContent = text;
+        chatStatus.className = tone ? `chat-status ${tone}` : "chat-status";
+      }
+
+      function setChatMode(mode) {
+        currentChatMode = mode === "discuss" ? "discuss" : "ask";
+        chatModeButtons.forEach((button) => {
+          button.classList.toggle("active", button.dataset.chatMode === currentChatMode);
+        });
+        chatInput.placeholder = currentChatPlaceholder();
+        renderChatSuggestions(getLatestChatSuggestions());
+      }
+
+      function setChatComposerEnabled(enabled) {
+        chatInput.disabled = !enabled;
+        chatSendButton.disabled = !enabled;
+        clearChatButton.disabled = !enabled || !currentChatMessages.length;
+      }
+
+      function citationLabel(citation) {
+        const label = String(citation && citation.label ? citation.label : "source");
+        if (!citation || !citation.page) return label;
+        return `${label} / ${tf("chat.citation.page", { n: citation.page })}`;
+      }
+
+      function getLatestChatSuggestions() {
+        for (let index = currentChatMessages.length - 1; index >= 0; index -= 1) {
+          const message = currentChatMessages[index];
+          if (message && message.role === "assistant" && Array.isArray(message.follow_ups) && message.follow_ups.length) {
+            return message.follow_ups;
+          }
+        }
+        return defaultChatSuggestions(currentChatMode);
+      }
+
+      function renderChatSuggestions(suggestions) {
+        const items = Array.isArray(suggestions) ? suggestions.filter(Boolean) : [];
+        if (!items.length) {
+          chatFollowups.innerHTML = `<button class="suggestion-chip" type="button" disabled>${escapeHtml(t("chat.suggestion.placeholder"))}</button>`;
+          return;
+        }
+
+        chatFollowups.innerHTML = items
+          .map(
+            (item) => `
+              <button class="suggestion-chip" type="button" data-suggestion="${escapeHtml(item)}">
+                ${escapeHtml(item)}
+              </button>
+            `,
+          )
+          .join("");
+      }
+
+      function renderChatThread(messages) {
+        if (!Array.isArray(messages) || !messages.length) {
+          chatMessages.innerHTML = `<p class="empty-copy">${escapeHtml(t("chat.empty"))}</p>`;
+          return;
+        }
+
+        const userLabel = currentLang === "ja" ? "\u3042\u306a\u305f" : "You";
+        const assistantLabel = "MemoForge";
+        const sourceLabel = currentLang === "ja" ? "\u6839\u62e0" : "Sources";
+
+        chatMessages.innerHTML = messages
+          .map((message) => {
+            const role = String(message && message.role ? message.role : "assistant");
+            const label = role === "assistant" ? assistantLabel : userLabel;
+            const citations = Array.isArray(message.citations) ? message.citations : [];
+            const citationsHtml = citations.length
+              ? `
+                <div class="chat-citations">
+                  <span class="chat-citations-label">${escapeHtml(sourceLabel)}</span>
+                  ${citations
+                    .map(
+                      (citation) => `
+                        <span class="citation-chip" title="${escapeHtml(citation.snippet || "")}">
+                          ${escapeHtml(citation.id || "")} ${escapeHtml(citationLabel(citation))}
+                        </span>
+                      `,
+                    )
+                    .join("")}
+                </div>
+              `
+              : "";
+
+            return `
+              <article class="chat-message ${escapeHtml(role)}">
+                <div class="chat-message-meta">
+                  <strong>${escapeHtml(label)}</strong>
+                  <time>${escapeHtml(formatDate(message.created_at || ""))}</time>
+                </div>
+                <div class="chat-bubble">${renderMarkdown(message.content || "")}</div>
+                ${citationsHtml}
+              </article>
+            `;
+          })
+          .join("");
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      async function loadChatThread(runId) {
+        if (!runId) return;
+
+        chatRequestRunId = runId;
+        setChatStatusText(t("chat.status.loading"), "loading");
+        try {
+          const response = await fetch(`/api/runs/${runId}/chat`);
+          if (!response.ok) {
+            throw new Error(t("chat.error.load"));
+          }
+          const payload = await response.json();
+          if (chatRequestRunId !== runId) return;
+
+          currentChatRunId = runId;
+          currentChatReady = Boolean(payload.ready);
+          currentChatMessages = Array.isArray(payload.messages) ? payload.messages : [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(getLatestChatSuggestions());
+          setChatComposerEnabled(currentChatReady);
+          setChatStatusText(
+            currentChatReady ? t("chat.status.ready") : t("chat.status.waiting_run"),
+            currentChatReady ? "ready" : "",
+          );
+        } catch (_error) {
+          if (chatRequestRunId !== runId) return;
+          currentChatRunId = runId;
+          currentChatReady = false;
+          currentChatMessages = [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(defaultChatSuggestions(currentChatMode));
+          setChatComposerEnabled(false);
+          setChatStatusText(t("chat.error.load"), "error");
+        } finally {
+          if (chatRequestRunId === runId) {
+            chatRequestRunId = "";
+          }
+        }
+      }
+
+      function syncChatPanel(run) {
+        if (!run || !run.run_id) {
+          currentChatRunId = "";
+          currentChatReady = false;
+          currentChatMessages = [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(defaultChatSuggestions(currentChatMode));
+          setChatComposerEnabled(false);
+          setChatStatusText(t("chat.status.waiting_run"));
+          return;
+        }
+
+        if (run.status === "failed") {
+          currentChatRunId = run.run_id;
+          currentChatReady = false;
+          currentChatMessages = [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(defaultChatSuggestions(currentChatMode));
+          setChatComposerEnabled(false);
+          setChatStatusText(t("chat.status.failed_run"), "error");
+          return;
+        }
+
+        if (activeRunStatuses.has(run.status)) {
+          currentChatRunId = run.run_id;
+          currentChatReady = false;
+          currentChatMessages = [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(defaultChatSuggestions(currentChatMode));
+          setChatComposerEnabled(false);
+          setChatStatusText(t("chat.status.running_run"), "loading");
+          return;
+        }
+
+        if (!run.final_markdown) {
+          currentChatRunId = run.run_id;
+          currentChatReady = false;
+          currentChatMessages = [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(defaultChatSuggestions(currentChatMode));
+          setChatComposerEnabled(false);
+          setChatStatusText(t("chat.status.waiting_run"));
+          return;
+        }
+
+        const runChanged = currentChatRunId !== run.run_id;
+        if (runChanged) {
+          currentChatRunId = run.run_id;
+          currentChatReady = false;
+          currentChatMessages = [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(defaultChatSuggestions(currentChatMode));
+          setChatComposerEnabled(false);
+        }
+
+        if (runChanged || (!currentChatReady && chatRequestRunId !== run.run_id)) {
+          void loadChatThread(run.run_id);
+          return;
+        }
+
+        renderChatThread(currentChatMessages);
+        renderChatSuggestions(getLatestChatSuggestions());
+        setChatComposerEnabled(currentChatReady);
+        setChatStatusText(t("chat.status.ready"), "ready");
+      }
+
       function renderRun(run, options = {}) {
+        currentRun = run;
         const normalizedRun = syncStatusCard(run);
         const noteMarkdown = normalizedRun.final_markdown || "";
         const filePaths = Array.isArray(normalizedRun.file_paths) ? normalizedRun.file_paths : [];
@@ -777,24 +1449,24 @@
         rawNoteMarkdown = noteMarkdown;
         metaRunId.textContent = normalizedRun.run_id || "-";
         metaCreatedAt.textContent = normalizedRun.created_at || "-";
-        metaNotePath.textContent = normalizedRun.note_path || "未保存";
-        notePathChip.textContent = normalizedRun.note_path || "未保存";
+        metaNotePath.textContent = normalizedRun.note_path || t("note.unsaved");
+        notePathChip.textContent = normalizedRun.note_path || t("note.unsaved");
 
         if (normalizedRun.status === "completed") {
           overviewStatus.textContent = verdictLabel(normalizedRun.review || {});
         } else if (normalizedRun.status === "failed") {
-          overviewStatus.textContent = "失敗";
+          overviewStatus.textContent = t("overview.status.failed");
         } else if (activeRunStatuses.has(normalizedRun.status)) {
-          overviewStatus.textContent = "処理中";
+          overviewStatus.textContent = t("overview.status.running");
         } else {
-          overviewStatus.textContent = "未実行";
+          overviewStatus.textContent = t("overview.status.not_run");
         }
 
         overviewAttachments.textContent = String(filePaths.length);
         overviewRelated.textContent = String(relatedNotes.length);
         overviewLogCount.textContent = String(logs.length);
         overviewTitle.textContent = extractTitle(noteMarkdown);
-        overviewInstruction.textContent = normalizedRun.instruction || "依頼文はありません。";
+        overviewInstruction.textContent = normalizedRun.instruction || t("overview.no_instruction");
 
         renderRelatedNotes(normalizedRun);
         renderPlan(normalizedRun.plan || []);
@@ -804,13 +1476,13 @@
           finalMarkdown.innerHTML = renderMarkdown(noteMarkdown);
           copyNoteButton.disabled = false;
         } else if (activeRunStatuses.has(normalizedRun.status)) {
-          finalMarkdown.innerHTML = '<p class="empty-copy">メモを生成中です。進捗は Process タブでも確認できます。</p>';
+          finalMarkdown.innerHTML = `<p class="empty-copy">${escapeHtml(t("note.generating"))}</p>`;
           copyNoteButton.disabled = true;
         } else if (normalizedRun.status === "failed") {
-          finalMarkdown.innerHTML = '<p class="empty-copy">メモの生成に失敗しました。Process タブのログを確認してください。</p>';
+          finalMarkdown.innerHTML = `<p class="empty-copy">${escapeHtml(t("note.failed"))}</p>`;
           copyNoteButton.disabled = true;
         } else {
-          finalMarkdown.innerHTML = '<p class="empty-copy">最終メモはまだありません。</p>';
+          finalMarkdown.innerHTML = `<p class="empty-copy">${escapeHtml(t("note.none"))}</p>`;
           copyNoteButton.disabled = true;
         }
 
@@ -828,6 +1500,7 @@
           resultState.className = "result-state idle";
         }
 
+        syncChatPanel(normalizedRun);
         setActiveRunItem(normalizedRun.run_id || "");
         if (options.focusNote && noteMarkdown) {
           setActiveTab("note");
@@ -881,10 +1554,24 @@
         }
       }
 
+      // ── Event listeners ──────────────────────────────────────────────────
+      langToggle.addEventListener("click", () => {
+        currentLang = currentLang === "ja" ? "en" : "ja";
+        localStorage.setItem(LANG_KEY, currentLang);
+        applyTranslations();
+      });
+
       instructionInput.addEventListener("keydown", (event) => {
         if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
           event.preventDefault();
           runForm.requestSubmit();
+        }
+      });
+
+      chatInput.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+          event.preventDefault();
+          chatForm.requestSubmit();
         }
       });
 
@@ -902,6 +1589,19 @@
         button.addEventListener("click", () => {
           setActiveTab(button.dataset.tab);
         });
+      });
+
+      chatModeButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          setChatMode(button.dataset.chatMode);
+        });
+      });
+
+      chatFollowups.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-suggestion]");
+        if (!button || button.disabled) return;
+        chatInput.value = button.dataset.suggestion || "";
+        chatInput.focus();
       });
 
       selectFilesButton.addEventListener("click", (event) => {
@@ -961,7 +1661,7 @@
         try {
           await loadRun(button.dataset.runId);
         } catch (error) {
-          setStatus("error", "読み込み失敗", error.message || "保存済みジョブを読み込めませんでした。", 0);
+          setStatus("error", t("load.error.label"), error.message || t("load.error.detail"), 0);
         }
       });
 
@@ -970,15 +1670,82 @@
 
         try {
           await navigator.clipboard.writeText(rawNoteMarkdown);
-          copyNoteButton.textContent = "コピーしました";
+          copyNoteButton.textContent = t("copy.success");
           window.setTimeout(() => {
-            copyNoteButton.textContent = "Markdown をコピー";
+            copyNoteButton.textContent = t("note.copy");
           }, 1400);
         } catch (_error) {
-          copyNoteButton.textContent = "コピー失敗";
+          copyNoteButton.textContent = t("copy.fail");
           window.setTimeout(() => {
-            copyNoteButton.textContent = "Markdown をコピー";
+            copyNoteButton.textContent = t("note.copy");
           }, 1400);
+        }
+      });
+
+      clearChatButton.addEventListener("click", async () => {
+        if (!currentRun || !currentRun.run_id || !currentChatReady) return;
+
+        try {
+          const response = await fetch(`/api/runs/${currentRun.run_id}/chat`, {
+            method: "DELETE"
+          });
+          if (!response.ok) {
+            throw new Error(t("chat.error.clear"));
+          }
+          const payload = await response.json();
+          currentChatReady = Boolean(payload.ready);
+          currentChatMessages = Array.isArray(payload.messages) ? payload.messages : [];
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(defaultChatSuggestions(currentChatMode));
+          setChatComposerEnabled(currentChatReady);
+          setChatStatusText(currentChatReady ? t("chat.status.ready") : t("chat.status.waiting_run"), currentChatReady ? "ready" : "");
+        } catch (error) {
+          setChatStatusText(error.message || t("chat.error.clear"), "error");
+        }
+      });
+
+      chatForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        if (!currentRun || !currentRun.run_id || !currentChatReady) return;
+        const message = chatInput.value.trim();
+        if (!message) {
+          chatInput.focus();
+          return;
+        }
+
+        const runId = currentRun.run_id;
+        setChatComposerEnabled(false);
+        setChatStatusText(t("chat.status.sending"), "loading");
+
+        try {
+          const response = await fetch(`/api/runs/${runId}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message,
+              mode: currentChatMode,
+              lang: currentLang
+            })
+          });
+          if (!response.ok) {
+            throw new Error(t("chat.error.send"));
+          }
+          const payload = await response.json();
+          if (!currentRun || currentRun.run_id !== runId) {
+            return;
+          }
+
+          currentChatMessages = Array.isArray(payload.messages) ? payload.messages : [];
+          currentChatReady = Boolean(payload.ready);
+          chatInput.value = "";
+          renderChatThread(currentChatMessages);
+          renderChatSuggestions(getLatestChatSuggestions());
+          setChatComposerEnabled(currentChatReady);
+          setChatStatusText(t("chat.status.ready"), "ready");
+        } catch (error) {
+          setChatComposerEnabled(currentChatReady);
+          setChatStatusText(error.message || t("chat.error.send"), "error");
         }
       });
 
@@ -987,19 +1754,20 @@
 
         const instruction = instructionInput.value.trim();
         if (!instruction) {
-          setStatus("error", "依頼文が必要です", "整理を実行する前に、依頼文を入力してください。", 0);
+          setStatus("error", t("form.error.label"), t("form.error.detail"), 0);
           instructionInput.focus();
           return;
         }
 
         const payload = new FormData();
         payload.append("instruction", instruction);
+        payload.append("lang", currentLang);
         selectedFiles.forEach((file) => payload.append("files", file, file.name));
 
         submitButton.disabled = true;
         runForm.classList.add("is-busy");
         renderPhaseList("running", 0);
-        setStatus("running", "ジョブ登録中", "整理ジョブを作成しています。", 4);
+        setStatus("running", t("submit.running.label"), t("submit.running.detail"), 4);
 
         try {
           const response = await fetch("/api/runs", {
@@ -1008,7 +1776,7 @@
           });
 
           if (!response.ok) {
-            throw new Error("ジョブの実行に失敗しました。サーバー設定を確認してください。");
+            throw new Error(t("submit.error.server"));
           }
 
           const run = normalizeRun(await response.json());
@@ -1018,16 +1786,15 @@
         } catch (error) {
           stopRunPolling();
           renderPhaseList("error", 0);
-          setStatus("error", "実行に失敗", error.message || "予期しないエラーが発生しました。", 0);
+          setStatus("error", t("submit.error.label"), error.message || t("submit.error.unexpected"), 0);
         } finally {
           submitButton.disabled = false;
           runForm.classList.remove("is-busy");
         }
       });
 
-      renderFileList();
-      renderPhaseList();
-      setStatus("idle", "待機中", "依頼文と資料を準備したら、整理を実行してください。", 0);
+      // ── Initialization ───────────────────────────────────────────────────
+      applyTranslations();
       copyNoteButton.disabled = true;
 
       // Format server-rendered dates in history panel
@@ -1039,7 +1806,7 @@
       const firstRunButton = runList.querySelector(".run-item");
       if (firstRunButton) {
         loadRun(firstRunButton.dataset.runId).catch(() => {
-          setStatus("error", "読み込み失敗", "初期ジョブの表示に失敗しました。", 0);
+          setStatus("error", t("load.error.label"), t("load.error.initial"), 0);
         });
       }
     </script>
