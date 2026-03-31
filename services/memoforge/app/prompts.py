@@ -254,6 +254,29 @@ User question:
 {message}
 """
 
+# ── Tag extraction ────────────────────────────────────────────────────────────
+
+_TAG_PROMPT_JA = """以下の研究ノートを読み、内容を表す短いタグを 3〜8 個抽出してください。
+タグは小文字・日本語可・英数字可・スペースなし・ハイフン区切り可とします。
+JSON のみを返してください。キーは tags のみ、値は文字列配列。
+
+ノート:
+{markdown}
+"""
+
+_TAG_PROMPT_EN = """Read the following research note and extract 3–8 short tags that describe its content.
+Tags should be lowercase, no spaces, hyphens allowed.
+Return JSON only. The only key is 'tags'; value is a string array.
+
+Note:
+{markdown}
+"""
+
+
+def get_tag_prompt(lang: str = "ja") -> str:
+    return _TAG_PROMPT_EN if lang == "en" else _TAG_PROMPT_JA
+
+
 # ── Accessors ─────────────────────────────────────────────────────────────────
 
 

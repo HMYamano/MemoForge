@@ -17,6 +17,7 @@ from .prompts import (
     get_revision_prompt,
     get_structure_prompt,
     get_system_supervisor,
+    get_tag_prompt,
 )
 from .storage import load_run, now_iso, save_markdown_note, save_run, save_run_chat_index, search_related_notes
 
@@ -46,6 +47,7 @@ class MemoState(TypedDict, total=False):
     final_markdown: str
     saved_note_path: str
     review: dict[str, Any]
+    tags: list[str]
     created_at: str
     updated_at: str
     status: str
@@ -69,6 +71,9 @@ def _build_run_payload(state: MemoState) -> dict[str, Any]:
     status = state.get("status") or ("completed" if note_path else "running")
     progress = int(state.get("progress", STEP_PROGRESS.get(state.get("current_step", "queued"), 0)))
     current_step = state.get("current_step", "queued")
+    # NOTE: extracted_docs is intentionally omitted from the persisted payload.
+    # It can be large (full document text + vision notes) and is only needed
+    # during the workflow execution. load_run() will therefore never return it.
     return {
         "run_id": state["run_id"],
         "created_at": state["created_at"],
@@ -82,6 +87,7 @@ def _build_run_payload(state: MemoState) -> dict[str, Any]:
         "review": state.get("review", {}),
         "note_path": note_path,
         "final_markdown": final_markdown,
+        "tags": state.get("tags", []),
         "status": status,
         "progress": progress,
         "current_step": current_step,
@@ -412,11 +418,26 @@ def _derive_note_title(markdown: str) -> str:
     return "research_memo"
 
 
+def _extract_tags(markdown: str, lang: str) -> list[str]:
+    client = OllamaClient()
+    try:
+        raw = client.chat(
+            settings.reasoning_model,
+            [{"role": "user", "content": get_tag_prompt(lang).format(markdown=markdown[:4000])}],
+            format_json=True,
+        )
+        return json.loads(raw).get("tags", [])
+    except Exception:
+        return []
+
+
 def save_node(state: MemoState) -> MemoState:
     state = _persist_state(state, status="running", current_step="save", progress=STEP_PROGRESS["save"], error_message="")
+    lang = state.get("lang", "ja")
     final_markdown = state.get("final_markdown") or state.get("draft_markdown", "")
     title = _derive_note_title(final_markdown)
-    note_path = save_markdown_note(title=title, body=final_markdown)
+    tags = _extract_tags(final_markdown, lang)
+    note_path = save_markdown_note(title=title, body=final_markdown, tags=tags)
     chat_index = build_run_chat_index(
         run_id=state["run_id"],
         instruction=state["instruction"],
@@ -430,7 +451,8 @@ def save_node(state: MemoState) -> MemoState:
     result = {
         "saved_note_path": str(note_path),
         "final_markdown": final_markdown,
-        "logs": _log(state, "save", _lmsg(state, "save"), {"note_path": str(note_path)}),
+        "tags": tags,
+        "logs": _log(state, "save", _lmsg(state, "save"), {"note_path": str(note_path), "tags": tags}),
     }
     return _persist_node_result(state, result, "save")
 
@@ -477,7 +499,8 @@ def run_workflow(
         status="running",
         lang=lang,
     )
-    state = _persist_state(state, status="running", current_step="intake", progress=STEP_PROGRESS["intake"], error_message="")
+    # intake_node() calls _persist_state() itself as its first action,
+    # so no pre-persist is needed here.
 
     try:
         result = app_graph.invoke(state)

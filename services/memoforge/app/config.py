@@ -11,11 +11,19 @@ class Settings:
     reasoning_model: str = os.getenv("REASONING_MODEL", "qwen3:30b")
     vision_model: str = os.getenv("VISION_MODEL", "gemma3:27b")
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "embeddinggemma")
+    # Default paths are for Docker (mapped as volumes in docker-compose.yml).
+    # For local execution without Docker, set these environment variables, e.g.:
+    #   APP_DATA_DIR=./data  NOTES_DIR=./notes  INCOMING_DIR=./incoming
     app_data_dir: Path = Path(os.getenv("APP_DATA_DIR", "/app/data"))
     notes_dir: Path = Path(os.getenv("NOTES_DIR", "/app/notes"))
     incoming_dir: Path = Path(os.getenv("INCOMING_DIR", "/app/incoming"))
     max_related_notes: int = int(os.getenv("MAX_RELATED_NOTES", "5"))
     pdf_vision_max_pages: int = int(os.getenv("PDF_VISION_MAX_PAGES", "4"))
+    ollama_timeout: int = int(os.getenv("OLLAMA_TIMEOUT", "600"))
+    max_upload_bytes: int = int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024)))  # 100 MB
+    # incoming/ directory watcher
+    watcher_enabled: bool = os.getenv("WATCHER_ENABLED", "false").lower() == "true"
+    watcher_lang: str = os.getenv("WATCHER_LANG", "ja")
 
     @property
     def runs_dir(self) -> Path:

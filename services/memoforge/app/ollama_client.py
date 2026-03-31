@@ -18,7 +18,7 @@ class OllamaClient:
         self.base_url = (base_url or settings.ollama_base_url).rstrip("/")
 
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        resp = requests.post(f"{self.base_url}{path}", json=payload, timeout=600)
+        resp = requests.post(f"{self.base_url}{path}", json=payload, timeout=settings.ollama_timeout)
         if not resp.ok:
             raise OllamaError(f"Ollama request failed: {resp.status_code} {resp.text}")
         return resp.json()

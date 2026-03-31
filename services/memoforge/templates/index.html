@@ -183,6 +183,7 @@
           <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="process">Process</button>
           <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="note">Note</button>
           <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="chat" data-i18n="chat.tab">Chat</button>
+          <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="library" data-i18n="library.tab">Library</button>
         </div>
 
         <section class="tab-panel active" data-tab-panel="overview">
@@ -280,6 +281,54 @@
               <button id="chat-send-btn" class="primary-button" type="submit" data-i18n="chat.send">Send</button>
             </div>
           </form>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="library">
+          <div class="library-toolbar">
+            <input id="tag-filter" class="library-tag-input" type="text"
+              data-i18n-placeholder="library.filter.placeholder" placeholder="タグで絞り込み…" />
+            <button id="library-refresh-btn" class="ghost-button small-button" type="button"
+              data-i18n="library.refresh">更新</button>
+          </div>
+          <div id="tag-cloud" class="tag-cloud"></div>
+          <div id="library-list" class="library-list">
+            <p class="empty-copy" data-i18n="library.empty">ノートはまだありません。</p>
+          </div>
+
+          <!-- Note detail drawer -->
+          <div id="note-drawer" class="note-drawer" hidden>
+            <div class="note-drawer-head">
+              <div>
+                <p class="section-kicker" id="drawer-filename"></p>
+                <h3 id="drawer-title"></h3>
+                <div id="drawer-tags" class="drawer-tags"></div>
+              </div>
+              <button id="drawer-close-btn" class="ghost-button small-button" type="button"
+                data-i18n="library.drawer.close">閉じる</button>
+            </div>
+            <div class="drawer-actions">
+              <button id="drawer-edit-btn" class="secondary-button small-button" type="button"
+                data-i18n="library.drawer.edit">編集</button>
+              <a id="drawer-export-md" class="ghost-button small-button" download
+                data-i18n="library.export.md">MD</a>
+              <a id="drawer-export-html" class="ghost-button small-button" download
+                data-i18n="library.export.html">HTML</a>
+              <a id="drawer-export-obsidian" class="ghost-button small-button" download
+                data-i18n="library.export.obsidian">Obsidian</a>
+              <button id="drawer-delete-btn" class="ghost-button small-button danger-button" type="button"
+                data-i18n="library.drawer.delete">削除</button>
+            </div>
+            <div id="drawer-edit-area" hidden>
+              <textarea id="drawer-editor" rows="20" class="drawer-editor"></textarea>
+              <div class="drawer-edit-actions">
+                <button id="drawer-save-btn" class="primary-button small-button" type="button"
+                  data-i18n="library.drawer.save">保存</button>
+                <button id="drawer-cancel-btn" class="ghost-button small-button" type="button"
+                  data-i18n="library.drawer.cancel">キャンセル</button>
+              </div>
+            </div>
+            <article id="drawer-body" class="memo-rendered"></article>
+          </div>
         </section>
       </section>
 
@@ -434,6 +483,25 @@
           "chat.error.send": "チャットの送信に失敗しました。",
           "chat.error.clear": "チャット履歴を消去できませんでした。",
           "chat.citation.page": "page {n}",
+          "library.tab": "Library",
+          "library.filter.placeholder": "タグで絞り込み…",
+          "library.refresh": "更新",
+          "library.empty": "ノートはまだありません。",
+          "library.loading": "ノートを読み込んでいます…",
+          "library.error": "ノートの読み込みに失敗しました。",
+          "library.drawer.close": "閉じる",
+          "library.drawer.edit": "編集",
+          "library.drawer.save": "保存",
+          "library.drawer.cancel": "キャンセル",
+          "library.drawer.delete": "削除",
+          "library.drawer.delete.confirm": "このノートを削除しますか？この操作は元に戻せません。",
+          "library.drawer.save.error": "保存に失敗しました。",
+          "library.drawer.delete.error": "削除に失敗しました。",
+          "library.export.md": "MD",
+          "library.export.html": "HTML",
+          "library.export.obsidian": "Obsidian",
+          "library.note.untitled": "無題",
+          "library.no_tags": "タグなし",
         },
         en: {
           "hero.title": "Turn research materials into reusable lab notes.",
@@ -555,6 +623,25 @@
           "chat.error.send": "Failed to send the chat message.",
           "chat.error.clear": "Failed to clear chat history.",
           "chat.citation.page": "page {n}",
+          "library.tab": "Library",
+          "library.filter.placeholder": "Filter by tag…",
+          "library.refresh": "Refresh",
+          "library.empty": "No notes yet.",
+          "library.loading": "Loading notes…",
+          "library.error": "Failed to load notes.",
+          "library.drawer.close": "Close",
+          "library.drawer.edit": "Edit",
+          "library.drawer.save": "Save",
+          "library.drawer.cancel": "Cancel",
+          "library.drawer.delete": "Delete",
+          "library.drawer.delete.confirm": "Delete this note? This cannot be undone.",
+          "library.drawer.save.error": "Failed to save.",
+          "library.drawer.delete.error": "Failed to delete.",
+          "library.export.md": "MD",
+          "library.export.html": "HTML",
+          "library.export.obsidian": "Obsidian",
+          "library.note.untitled": "Untitled",
+          "library.no_tags": "No tags",
         }
       };
 
@@ -643,8 +730,8 @@
       const chatModeButtons = Array.from(document.querySelectorAll("[data-chat-mode]"));
 
       let selectedFiles = [];
-      let pollTimer = null;
-      let activePollRunId = "";
+      let activeEventSource = null;
+      let activeSseRunId = "";
       let rawNoteMarkdown = "";
       let currentRun = null;
       let currentChatMode = "ask";
@@ -861,12 +948,12 @@
         return (phaseMap[run.current_step] || phaseMap.queued).index;
       }
 
-      function stopRunPolling() {
-        if (pollTimer) {
-          window.clearTimeout(pollTimer);
-          pollTimer = null;
+      function stopRunSSE() {
+        if (activeEventSource) {
+          activeEventSource.close();
+          activeEventSource = null;
         }
-        activePollRunId = "";
+        activeSseRunId = "";
       }
 
       async function fetchRun(runId) {
@@ -877,36 +964,40 @@
         return normalizeRun(await response.json());
       }
 
-      function scheduleRunPoll(runId) {
-        if (!runId || activePollRunId !== runId) return;
-        if (pollTimer) window.clearTimeout(pollTimer);
-        pollTimer = window.setTimeout(async () => {
-          pollTimer = null;
+      function startRunSSE(runId) {
+        if (!runId) return;
+        stopRunSSE();
+        activeSseRunId = runId;
+
+        const es = new EventSource(`/api/runs/${runId}/stream`);
+        activeEventSource = es;
+
+        es.onmessage = (event) => {
+          if (activeSseRunId !== runId) { es.close(); return; }
           try {
-            const run = await fetchRun(runId);
-            if (activePollRunId !== runId) return;
+            const run = normalizeRun(JSON.parse(event.data));
             renderRun(run);
             upsertRunItem(run);
-            if (activeRunStatuses.has(run.status)) {
-              scheduleRunPoll(runId);
-            } else {
-              stopRunPolling();
-            }
-          } catch (_error) {
-            if (activePollRunId === runId) {
-              scheduleRunPoll(runId);
-            }
-          }
-        }, 1500);
-      }
+          } catch (_) {}
+        };
 
-      function startRunPolling(runId) {
-        if (!runId) return;
-        if (activePollRunId !== runId) {
-          stopRunPolling();
-          activePollRunId = runId;
-        }
-        scheduleRunPoll(runId);
+        es.addEventListener("done", () => {
+          es.close();
+          if (activeSseRunId === runId) activeSseRunId = "";
+          activeEventSource = null;
+        });
+
+        es.addEventListener("error", () => {
+          es.close();
+          if (activeSseRunId !== runId) return;
+          activeEventSource = null;
+          activeSseRunId = "";
+          // SSE失敗時は最終状態を一度だけ取得してUIに反映
+          fetchRun(runId).then((run) => {
+            renderRun(run);
+            upsertRunItem(run);
+          }).catch(() => {});
+        });
       }
 
       function syncStatusCard(run) {
@@ -1545,9 +1636,9 @@
           const run = await fetchRun(runId);
           renderRun(run);
           if (activeRunStatuses.has(run.status)) {
-            startRunPolling(run.run_id);
+            startRunSSE(run.run_id);
           } else {
-            stopRunPolling();
+            stopRunSSE();
           }
         } finally {
           if (button) button.classList.remove("is-loading");
@@ -1782,14 +1873,187 @@
           const run = normalizeRun(await response.json());
           renderRun(run);
           upsertRunItem(run);
-          startRunPolling(run.run_id);
+          startRunSSE(run.run_id);
         } catch (error) {
-          stopRunPolling();
+          stopRunSSE();
           renderPhaseList("error", 0);
           setStatus("error", t("submit.error.label"), error.message || t("submit.error.unexpected"), 0);
         } finally {
           submitButton.disabled = false;
           runForm.classList.remove("is-busy");
+        }
+      });
+
+      // ── Library ─────────────────────────────────────────────────────────
+      const tagFilterInput = document.getElementById("tag-filter");
+      const libraryRefreshBtn = document.getElementById("library-refresh-btn");
+      const tagCloud = document.getElementById("tag-cloud");
+      const libraryList = document.getElementById("library-list");
+      const noteDrawer = document.getElementById("note-drawer");
+      const drawerFilename = document.getElementById("drawer-filename");
+      const drawerTitle = document.getElementById("drawer-title");
+      const drawerTagsEl = document.getElementById("drawer-tags");
+      const drawerCloseBtn = document.getElementById("drawer-close-btn");
+      const drawerEditBtn = document.getElementById("drawer-edit-btn");
+      const drawerSaveBtn = document.getElementById("drawer-save-btn");
+      const drawerCancelBtn = document.getElementById("drawer-cancel-btn");
+      const drawerDeleteBtn = document.getElementById("drawer-delete-btn");
+      const drawerEditArea = document.getElementById("drawer-edit-area");
+      const drawerEditor = document.getElementById("drawer-editor");
+      const drawerBody = document.getElementById("drawer-body");
+      const drawerExportMd = document.getElementById("drawer-export-md");
+      const drawerExportHtml = document.getElementById("drawer-export-html");
+      const drawerExportObsidian = document.getElementById("drawer-export-obsidian");
+
+      let libraryNotes = [];
+      let activeNoteFilename = "";
+
+      async function loadLibrary(tag) {
+        libraryList.innerHTML = `<p class="empty-copy">${escapeHtml(t("library.loading"))}</p>`;
+        try {
+          const url = tag ? `/api/notes?tag=${encodeURIComponent(tag)}` : "/api/notes";
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error();
+          libraryNotes = await resp.json();
+          renderTagCloud(libraryNotes);
+          renderLibraryList(libraryNotes);
+        } catch (_) {
+          libraryList.innerHTML = `<p class="empty-copy">${escapeHtml(t("library.error"))}</p>`;
+        }
+      }
+
+      function renderTagCloud(notes) {
+        const counts = {};
+        notes.forEach((n) => (n.tags || []).forEach((tag) => { counts[tag] = (counts[tag] || 0) + 1; }));
+        const tags = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        if (!tags.length) { tagCloud.innerHTML = ""; return; }
+        tagCloud.innerHTML = tags.map(([tag, cnt]) =>
+          `<button class="tag-chip" type="button" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)} <span class="tag-count">${cnt}</span></button>`
+        ).join("");
+      }
+
+      function renderLibraryList(notes) {
+        if (!notes.length) {
+          libraryList.innerHTML = `<p class="empty-copy">${escapeHtml(t("library.empty"))}</p>`;
+          return;
+        }
+        libraryList.innerHTML = notes.map((note) => {
+          const tagHtml = (note.tags || []).map((tg) =>
+            `<span class="tag-chip small">${escapeHtml(tg)}</span>`).join("");
+          return `
+            <button class="library-note-item" type="button" data-filename="${escapeHtml(note.filename)}">
+              <strong>${escapeHtml(note.title || t("library.note.untitled"))}</strong>
+              <div class="note-tags-row">${tagHtml || `<span class="muted">${escapeHtml(t("library.no_tags"))}</span>`}</div>
+              <p class="note-snippet">${escapeHtml((note.snippet || "").slice(0, 120))}</p>
+            </button>`;
+        }).join("");
+      }
+
+      async function openNoteDrawer(filename) {
+        activeNoteFilename = filename;
+        drawerEditArea.hidden = true;
+        drawerBody.innerHTML = "";
+        noteDrawer.hidden = false;
+        try {
+          const resp = await fetch(`/api/notes/${encodeURIComponent(filename)}`);
+          if (!resp.ok) throw new Error();
+          const note = await resp.json();
+          drawerFilename.textContent = note.filename;
+          drawerTitle.textContent = note.title || t("library.note.untitled");
+          drawerTagsEl.innerHTML = (note.tags || []).map((tg) =>
+            `<span class="tag-chip small">${escapeHtml(tg)}</span>`).join("");
+          drawerBody.innerHTML = renderMarkdown(note.body || "");
+          drawerEditor.value = note.body || "";
+          const base = `/api/notes/${encodeURIComponent(filename)}/export`;
+          drawerExportMd.href = `${base}?fmt=md`;
+          drawerExportMd.download = filename;
+          drawerExportHtml.href = `${base}?fmt=html`;
+          drawerExportHtml.download = filename.replace(/\.md$/, ".html");
+          drawerExportObsidian.href = `${base}?fmt=obsidian`;
+          drawerExportObsidian.download = filename;
+        } catch (_) {
+          drawerBody.innerHTML = `<p class="empty-copy">${escapeHtml(t("library.error"))}</p>`;
+        }
+      }
+
+      function closeNoteDrawer() {
+        noteDrawer.hidden = true;
+        activeNoteFilename = "";
+        drawerEditArea.hidden = true;
+      }
+
+      drawerCloseBtn.addEventListener("click", closeNoteDrawer);
+
+      drawerEditBtn.addEventListener("click", () => {
+        drawerEditArea.hidden = !drawerEditArea.hidden;
+        drawerBody.hidden = !drawerEditArea.hidden;
+      });
+
+      drawerCancelBtn.addEventListener("click", () => {
+        drawerEditArea.hidden = true;
+        drawerBody.hidden = false;
+      });
+
+      drawerSaveBtn.addEventListener("click", async () => {
+        if (!activeNoteFilename) return;
+        const newBody = drawerEditor.value.trim();
+        if (!newBody) return;
+        try {
+          const resp = await fetch(`/api/notes/${encodeURIComponent(activeNoteFilename)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ body: newBody }),
+          });
+          if (!resp.ok) throw new Error();
+          const note = await resp.json();
+          drawerBody.innerHTML = renderMarkdown(note.body || "");
+          drawerTitle.textContent = note.title || t("library.note.untitled");
+          drawerEditArea.hidden = true;
+          drawerBody.hidden = false;
+          loadLibrary(tagFilterInput.value.trim() || undefined);
+        } catch (_) {
+          alert(t("library.drawer.save.error"));
+        }
+      });
+
+      drawerDeleteBtn.addEventListener("click", async () => {
+        if (!activeNoteFilename) return;
+        if (!confirm(t("library.drawer.delete.confirm"))) return;
+        try {
+          const resp = await fetch(`/api/notes/${encodeURIComponent(activeNoteFilename)}`, { method: "DELETE" });
+          if (!resp.ok) throw new Error();
+          closeNoteDrawer();
+          loadLibrary(tagFilterInput.value.trim() || undefined);
+        } catch (_) {
+          alert(t("library.drawer.delete.error"));
+        }
+      });
+
+      libraryList.addEventListener("click", (e) => {
+        const btn = e.target.closest(".library-note-item");
+        if (btn) openNoteDrawer(btn.dataset.filename);
+      });
+
+      tagCloud.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-tag]");
+        if (!btn) return;
+        tagFilterInput.value = btn.dataset.tag;
+        loadLibrary(btn.dataset.tag);
+      });
+
+      tagFilterInput.addEventListener("change", () => {
+        loadLibrary(tagFilterInput.value.trim() || undefined);
+      });
+
+      libraryRefreshBtn.addEventListener("click", () => {
+        loadLibrary(tagFilterInput.value.trim() || undefined);
+      });
+
+      tabButtons.forEach((button) => {
+        if (button.dataset.tab === "library") {
+          button.addEventListener("click", () => {
+            if (!libraryNotes.length) loadLibrary();
+          }, { once: false });
         }
       });
 

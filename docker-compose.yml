@@ -53,6 +53,10 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-embeddinggemma}
       MAX_RELATED_NOTES: "${MAX_RELATED_NOTES:-5}"
       PDF_VISION_MAX_PAGES: "${PDF_VISION_MAX_PAGES:-4}"
+      OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-600}"
+      MAX_UPLOAD_BYTES: "${MAX_UPLOAD_BYTES:-104857600}"
+      WATCHER_ENABLED: "${WATCHER_ENABLED:-false}"
+      WATCHER_LANG: "${WATCHER_LANG:-ja}"
       APP_DATA_DIR: /app/data
       NOTES_DIR: /app/notes
       INCOMING_DIR: /app/incoming

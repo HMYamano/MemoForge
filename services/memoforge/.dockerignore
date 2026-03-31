@@ -1,0 +1,37 @@
+# Version control
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.eggs
+dist
+build
+
+# Virtual environments
+.venv
+venv
+env
+
+# Development tools
+.claude
+.ruff_cache
+.uv-cache
+*.egg
+
+# Runtime data (mounted as volumes)
+data/
+notes/
+incoming/
+
+# Documentation
+*.md
+LICENSE
+
+# Tests
+tests/

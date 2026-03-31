@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/HMYamano/MemoForge)](../../releases)
 [![CI](https://github.com/HMYamano/MemoForge/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 
-完全ローカルで動かす研究メモ整理システムです。PDF、画像、Markdown、テキストを材料にして、Markdown 形式の再利用しやすい研究ノートを生成します。
+完全ローカルで動かす研究メモ整理システムです。PDF、画像、Markdown、テキストを材料にして、Markdown 形式の再利用しやすい研究ノートを生成します。自動タグ付け・ノートライブラリ・リアルタイム進捗表示に対応しています。
 
 - UI 1: Open WebUI (`http://localhost:3000`)
 - UI 2: MemoForge Dashboard (`http://localhost:8001`)
@@ -19,7 +19,12 @@
 - ローカル完結で研究メモを整理
 - PDF の本文抽出と、ページ画像ベースの補助解釈を組み合わせ
 - 既存 `notes/` を BM25 で検索し、関連ノートを文脈として再利用
-- Open WebUI から OpenAI-compatible provider として接続可能
+- **タグ自動抽出** — LLM がタグを生成し、各ノートに YAML frontmatter として保存
+- **ノートライブラリ UI** — ダッシュボードでノートの閲覧・タグ絞り込み・編集・削除・エクスポートが可能
+- **エクスポート形式** — Markdown / スタンドアロン HTML / Obsidian 対応 Markdown
+- **リアルタイム進捗** — SSE でブラウザに即時配信（ポーリング不要）
+- **incoming/ 自動監視** — フォルダにファイルを置くだけでランを自動作成
+- Open WebUI から OpenAI-compatible provider として接続可能（ストリーミング対応）
 - 出力はそのまま再編集しやすい Markdown
 
 ## 構成
@@ -133,8 +138,32 @@ docker compose down
 1. `http://localhost:8001` を開く
 2. 依頼文を書く
 3. PDF / PNG / JPG / MD / TXT などを添付する
-4. 実行する
-5. `notes/` に Markdown メモが保存される
+4. 実行する — SSE により進捗がリアルタイムで更新される
+5. `notes/` に自動タグ付きの Markdown メモが保存される
+6. **Library** タブでノートの閲覧・編集・エクスポートができる
+
+### ノートライブラリ
+
+インスペクターパネルの **Library** タブから:
+
+- 生成済みの全ノートをタイトルとタグチップ付きで一覧表示
+- タグクラウドまたはテキスト入力でタグ絞り込み
+- ノートを開いて本文をプレビュー
+- ブラウザ上で本文を編集してディスクに保存
+- **Markdown** / **スタンドアロン HTML** / **Obsidian 対応 Markdown** でエクスポート
+- 不要なノートを削除
+
+### incoming/ 自動監視
+
+`.env` で `WATCHER_ENABLED=true` を設定すると、`incoming/` フォルダにファイルを置くだけで自動的に新しいランが作成されます。
+ダッシュボードを開かなくても、対応ファイル（PDF・画像・Markdown・テキスト）を置けば処理が始まります。
+
+```env
+WATCHER_ENABLED=true
+WATCHER_LANG=ja   # ja または en
+```
+
+ウォッチャーの状態は `GET /api/watcher` で確認できます。
 
 ### Open WebUI から使う
 
@@ -143,6 +172,7 @@ docker compose down
 - API URL: `http://memoforge:8001/v1`（Docker 内）
 - 別環境の Open WebUI から見に行く場合: `http://host.docker.internal:8001/v1`
 - API Key: 空で可
+- ストリーミング（`stream: true`）に完全対応
 
 ## モデル設定
 
@@ -185,14 +215,61 @@ PowerShell:
 docker compose up -d
 ```
 
-現在のモデル設定はダッシュボード上部にも表示されます。このプロジェクトでは、`REASONING_MODEL` がメモ生成とレビュー、`VISION_MODEL` が画像や PDF ページの解釈、`EMBEDDING_MODEL` がローカル検索系の機能向けとして使われます。
+現在のモデル設定はダッシュボード上部にも表示されます。このプロジェクトでは、`REASONING_MODEL` がメモ生成・レビュー・タグ抽出、`VISION_MODEL` が画像や PDF ページの解釈、`EMBEDDING_MODEL` がベクトル検索系の機能向けとして使われます。
+
+## 詳細設定
+
+すべてのオプションは `.env` で設定できます（全項目は `.env.example` を参照）。
+
+| 変数 | デフォルト | 説明 |
+|---|---|---|
+| `REASONING_MODEL` | `qwen3:30b` | テキスト生成・レビュー・タグ抽出用 LLM |
+| `VISION_MODEL` | `gemma3:27b` | 画像・PDF ページ解釈用 VLM |
+| `EMBEDDING_MODEL` | `embeddinggemma` | ベクトル検索向け（将来用） |
+| `OLLAMA_TIMEOUT` | `600` | Ollama リクエストのタイムアウト（秒） |
+| `MAX_UPLOAD_BYTES` | `104857600` | アップロード上限サイズ（100 MB） |
+| `MAX_RELATED_NOTES` | `5` | 1 ランあたり取得する関連ノートの最大数 |
+| `PDF_VISION_MAX_PAGES` | `4` | Vision 処理に使う PDF ページ数の上限 |
+| `WATCHER_ENABLED` | `false` | incoming/ 自動監視を有効化 |
+| `WATCHER_LANG` | `ja` | ウォッチャーが作るランの言語 |
+| `APP_DATA_DIR` | `/app/data` | ランデータの保存先（Docker デフォルト） |
+| `NOTES_DIR` | `/app/notes` | ノート出力先（Docker デフォルト） |
+| `INCOMING_DIR` | `/app/incoming` | 監視対象フォルダ（Docker デフォルト） |
+
+Docker を使わずローカル直接実行する場合は、パス変数を相対パスで上書きしてください。
+
+```env
+APP_DATA_DIR=./data
+NOTES_DIR=./notes
+INCOMING_DIR=./incoming
+```
+
+## API リファレンス（主要エンドポイント）
+
+| メソッド | パス | 説明 |
+|---|---|---|
+| `GET` | `/` | ダッシュボード HTML |
+| `POST` | `/api/runs` | 新しいランを作成 |
+| `GET` | `/api/runs/{id}` | ランの詳細を取得 |
+| `GET` | `/api/runs/{id}/stream` | 進捗の SSE ストリーム |
+| `POST` | `/api/runs/{id}/chat` | 追質問メッセージを送信 |
+| `GET` | `/api/notes` | ノート一覧（`?tag=` 絞り込み可） |
+| `GET` | `/api/notes/{filename}` | ノート詳細（frontmatter 解析済み） |
+| `PUT` | `/api/notes/{filename}` | ノート本文を更新 |
+| `DELETE` | `/api/notes/{filename}` | ノートを削除 |
+| `GET` | `/api/notes/{filename}/export?fmt=md\|html\|obsidian` | ノートをエクスポート |
+| `GET` | `/api/watcher` | ウォッチャーのステータス |
+| `GET` | `/v1/models` | OpenAI 互換モデル一覧 |
+| `POST` | `/v1/chat/completions` | OpenAI 互換チャット（ストリーミング対応） |
 
 ## 実装メモ
 
-- 関連ノート検索はローカル Markdown に対する BM25 ベースです
-- PDF 本文抽出は `pypdf`、PDF ページ画像化は `pypdfium2` を利用しています
+- 関連ノート検索は、ノートに変更があった場合のみ再構築されるキャッシュ付き BM25 インデックスを使用
+- PDF 本文抽出は `pypdf`、PDF ページ画像化は `pypdfium2` を利用
 - 画像や PDF ページの視覚情報は Vision モデルに短く要約させています
-- 将来的にベクトル DB や別のドキュメント処理系に差し替えやすい構成です
+- タグは各ランの末尾に LLM で生成され、YAML frontmatter としてノートに保存
+- 進捗は Server-Sent Events (SSE) でブラウザに即時配信
+- `incoming/` 監視は `watchdog` を使用、デフォルト無効
 
 ## リポジトリ内のデータについて
 
